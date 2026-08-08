@@ -7,7 +7,7 @@
   <DockPanel>
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
-        <MenuItem Header="Open Planet Folder…" Click="OpenPlanet_Click"/>
+        <MenuItem Header="Open Planet Mod Folder…" Click="OpenPlanet_Click"/>
         <Separator/>
         <MenuItem Header="Exit" Click="Exit_Click"/>
       </MenuItem>

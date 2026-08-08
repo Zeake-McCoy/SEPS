@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\SEPS.Core\SEPS.Core.csproj" />
+    <PackageReference Include="StbImageSharp" />
+  </ItemGroup>
+</Project>

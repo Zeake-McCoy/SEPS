@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>SEPS</AssemblyName>
+    <RootNamespace>SEPS.UI</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SEPS.Core\SEPS.Core.csproj" />
+    <ProjectReference Include="..\SEPS.IO\SEPS.IO.csproj" />
+    <ProjectReference Include="..\SEPS.Rendering\SEPS.Rendering.csproj" />
+    <ProjectReference Include="..\SEPS.Editor\SEPS.Editor.csproj" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+  </ItemGroup>
+</Project>

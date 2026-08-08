@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\SEPS.Core\SEPS.Core.csproj" />
+    <ProjectReference Include="..\SEPS.IO\SEPS.IO.csproj" />
+    <ProjectReference Include="..\SEPS.Rendering\SEPS.Rendering.csproj" />
+  </ItemGroup>
+</Project>

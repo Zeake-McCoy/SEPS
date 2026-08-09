@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using SEPS.Core;
 using SEPS.IO;
 
@@ -20,6 +21,14 @@ public partial class MainWindow : Window
     private IReadOnlyList<Planet> _discoveredPlanets =
         Array.Empty<Planet>();
 
+    // Editing infrastructure.
+    // This will remain false until actual editing is implemented.
+    private bool _hasUnsavedChanges;
+
+    // Prevents programmatic ComboBox updates from triggering
+    // planet switching recursively.
+    private bool _updatingPlanetSelector;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -29,14 +38,26 @@ public partial class MainWindow : Window
         object? sender,
         RoutedEventArgs e)
     {
-        var folders = await StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select Space Engineers Planet Mod / Root Folder",
-                AllowMultiple = false
-            });
+        if (_hasUnsavedChanges)
+        {
+            var discard =
+                await ConfirmDiscardChangesAsync();
+
+            if (!discard)
+                return;
+        }
+
+        var folders =
+            await StorageProvider.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    Title =
+                        "Select Space Engineers Planet Mod / Root Folder",
+                    AllowMultiple = false
+                });
 
         var folder = folders.FirstOrDefault();
+
         if (folder == null)
             return;
 
@@ -52,7 +73,8 @@ public partial class MainWindow : Window
 
         try
         {
-            StatusText.Text = "Searching for planets...";
+            StatusText.Text =
+                "Searching for planets...";
 
             _planetRoot = path;
 
@@ -62,40 +84,265 @@ public partial class MainWindow : Window
             if (_discoveredPlanets.Count == 0)
             {
                 _planet = null;
-                PlanetNameText.Text = "No planet found";
+                _hasUnsavedChanges = false;
+
+                ClearPlanetSelection();
 
                 StatusText.Text =
                     "No Space Engineers planet directories were found.";
-                
+
                 return;
             }
 
-            // V0.1.1:
-            // If exactly one planet exists, select it automatically.
-            //
-            // Multiple-planet selection UI is V0.1.3.
-            _planet = _discoveredPlanets[0];
+            // Select the first discovered planet by default.
+            _planet =
+                _discoveredPlanets[0];
 
-            PlanetNameText.Text = _planet.Name;
+            _hasUnsavedChanges = false;
 
-            PlanetSubtypeText.Text =
-                _planet.DataSubtypeId;
+            UpdatePlanetSelectionUi();
 
-            GeneratorDefinitionText.Text =
-                _planet.GeneratorDefinition != null
-                    ? $"✓ {Path.GetFileName(_planet.GeneratorDefinition.SourceFilePath)}"
-                    : "⚠ Not found";
-
-            StatusText.Text = BuildStatus(_planet);
+            StatusText.Text =
+                BuildStatus(_planet);
         }
         catch (Exception ex)
         {
             _planet = null;
-            _discoveredPlanets = Array.Empty<Planet>();
+            _discoveredPlanets =
+                Array.Empty<Planet>();
+
+            _hasUnsavedChanges = false;
+
+            ClearPlanetSelection();
 
             StatusText.Text =
                 $"Unable to open planet mod: {ex.Message}";
         }
+    }
+
+    private async void PlanetSelector_SelectionChanged(
+        object? sender,
+        SelectionChangedEventArgs e)
+    {
+        if (_updatingPlanetSelector)
+            return;
+
+        if (PlanetSelector.SelectedItem is Planet planet)
+        {
+            await SwitchPlanetAsync(planet);
+        }
+    }
+
+    private async void SwitchPlanetMenuItem_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: Planet planet })
+        {
+            await SwitchPlanetAsync(planet);
+        }
+    }
+
+    private async Task SwitchPlanetAsync(
+        Planet planet)
+    {
+        if (ReferenceEquals(_planet, planet))
+            return;
+
+        if (_hasUnsavedChanges)
+        {
+            var discard =
+                await ConfirmDiscardChangesAsync();
+
+            if (!discard)
+            {
+                RestorePlanetSelector();
+                return;
+            }
+        }
+
+        _planet = planet;
+
+        // Once we have real editing, this will only be reset
+        // after saving/discarding the previous planet.
+        _hasUnsavedChanges = false;
+
+        UpdatePlanetSelectionUi();
+
+        StatusText.Text =
+            BuildStatus(_planet);
+    }
+
+    private void UpdatePlanetSelectionUi()
+    {
+        _updatingPlanetSelector = true;
+
+        try
+        {
+            PlanetSelector.ItemsSource =
+                _discoveredPlanets;
+
+            PlanetSelector.SelectedItem =
+                _planet;
+        }
+        finally
+        {
+            _updatingPlanetSelector = false;
+        }
+
+        if (_planet == null)
+        {
+            ClearPlanetSelection();
+            return;
+        }
+
+        PlanetSubtypeText.Text =
+            _planet.DataSubtypeId;
+
+        GeneratorDefinitionText.Text =
+            _planet.GeneratorDefinition != null
+                ? $"✓ {Path.GetFileName(
+                    _planet.GeneratorDefinition.SourceFilePath)}"
+                : "⚠ Not found";
+
+        RebuildSwitchPlanetMenu();
+    }
+
+    private void ClearPlanetSelection()
+    {
+        _updatingPlanetSelector = true;
+
+        try
+        {
+            PlanetSelector.ItemsSource =
+                Array.Empty<Planet>();
+
+            PlanetSelector.SelectedItem = null;
+        }
+        finally
+        {
+            _updatingPlanetSelector = false;
+        }
+
+        PlanetSubtypeText.Text =
+            string.Empty;
+
+        GeneratorDefinitionText.Text =
+            string.Empty;
+
+        RebuildSwitchPlanetMenu();
+    }
+
+    private void RestorePlanetSelector()
+    {
+        _updatingPlanetSelector = true;
+
+        try
+        {
+            PlanetSelector.SelectedItem =
+                _planet;
+        }
+        finally
+        {
+            _updatingPlanetSelector = false;
+        }
+    }
+
+    private void RebuildSwitchPlanetMenu()
+    {
+        SwitchPlanetMenu.Items.Clear();
+
+        foreach (var planet in _discoveredPlanets)
+        {
+            var item = new MenuItem
+            {
+                Header =
+                    ReferenceEquals(planet, _planet)
+                        ? $"✓ {planet.Name}"
+                        : planet.Name,
+
+                Tag = planet
+            };
+
+            item.Click +=
+                SwitchPlanetMenuItem_Click;
+
+            SwitchPlanetMenu.Items.Add(item);
+        }
+
+        SwitchPlanetMenu.IsEnabled =
+            _discoveredPlanets.Count > 1;
+    }
+
+    private async Task<bool> ConfirmDiscardChangesAsync()
+    {
+        var dialog = new Window
+        {
+            Title = "Unsaved Changes",
+            Width = 460,
+            Height = 190,
+            CanResize = false,
+            WindowStartupLocation =
+                WindowStartupLocation.CenterOwner
+        };
+
+        var message = new TextBlock
+        {
+            Text =
+                "The current planet has unsaved changes.\n\n" +
+                "Switching planets without saving will discard them.",
+            TextWrapping =
+                Avalonia.Media.TextWrapping.Wrap
+        };
+
+        var discardButton = new Button
+        {
+            Content = "Discard Changes",
+            Width = 130
+        };
+
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Width = 100
+        };
+
+        discardButton.Click +=
+            (_, _) => dialog.Close(true);
+
+        cancelButton.Click +=
+            (_, _) => dialog.Close(false);
+
+        var buttons = new StackPanel
+        {
+            Orientation =
+                Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment =
+                Avalonia.Layout.HorizontalAlignment.Right,
+            Spacing = 8,
+            Children =
+            {
+                cancelButton,
+                discardButton
+            }
+        };
+
+        dialog.Content = new StackPanel
+        {
+            Margin =
+                new Avalonia.Thickness(20),
+            Spacing = 18,
+            Children =
+            {
+                message,
+                buttons
+            }
+        };
+
+        var result =
+            await dialog.ShowDialog<bool>(this);
+
+        return result;
     }
 
     private void Face_Click(
@@ -103,10 +350,14 @@ public partial class MainWindow : Window
         RoutedEventArgs e)
     {
         if (sender is Button { Tag: string tag } &&
-            Enum.TryParse<CubeFace>(tag, out var face))
+            Enum.TryParse<CubeFace>(
+                tag,
+                out var face))
         {
             _selectedFace = face;
-            FaceInfoText.Text = $"Face: {face}";
+
+            FaceInfoText.Text =
+                $"Face: {face}";
         }
     }
 
@@ -128,8 +379,9 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "v0.1.2 — Planet definition association",
-                Margin = new Avalonia.Thickness(24),
+                    "v0.1.3 — Planet switching",
+                Margin =
+                    new Avalonia.Thickness(24),
                 TextWrapping =
                     Avalonia.Media.TextWrapping.Wrap
             }
@@ -138,7 +390,8 @@ public partial class MainWindow : Window
         await dialog.ShowDialog(this);
     }
 
-    private static string BuildStatus(Planet planet)
+    private static string BuildStatus(
+        Planet planet)
     {
         var heightCount =
             planet.Faces.Values.Count(
@@ -159,12 +412,14 @@ public partial class MainWindow : Window
         {
             lines.Add(
                 $"Generator definition: " +
-                $"{Path.GetFileName(definition.SourceFilePath)}");
+                $"{Path.GetFileName(
+                    definition.SourceFilePath)}");
 
             if (definition.HillParams is { } hills)
             {
                 lines.Add(
-                    $"HillParams: {hills.Min} → {hills.Max}");
+                    $"HillParams: " +
+                    $"{hills.Min} → {hills.Max}");
             }
 
             if (definition.SurfaceDetail is { } detail)

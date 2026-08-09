@@ -17,15 +17,20 @@ public static class PlanetFolderLoader
     /// <summary>
     /// Scans a directory that is already known to contain a planet.
     /// </summary>
-    public static Planet Scan(string directory)
+    public static Planet Scan(
+        string directory,
+        IReadOnlyList<PlanetGeneratorDefinition>? definitions = null)
     {
         if (!Directory.Exists(directory))
             throw new DirectoryNotFoundException(directory);
 
+        var directoryInfo = new DirectoryInfo(directory);
+
         var planet = new Planet
         {
             SourceDirectory = directory,
-            Name = new DirectoryInfo(directory).Name
+            Name = directoryInfo.Name,
+            DataSubtypeId = directoryInfo.Name
         };
 
         foreach (var face in Enum.GetValues<CubeFace>())
@@ -43,6 +48,19 @@ public static class PlanetFolderLoader
                 true);
         }
 
+        // Associate the planet's map dataset with its
+        // PlanetGeneratorDefinition using the directory name
+        // as the candidate SubtypeId.
+        if (definitions != null)
+        {
+            planet.GeneratorDefinition =
+                definitions.FirstOrDefault(
+                    definition =>
+                        definition.SubtypeId.Equals(
+                            planet.DataSubtypeId,
+                            StringComparison.OrdinalIgnoreCase));
+        }
+
         return planet;
     }
 
@@ -51,17 +69,23 @@ public static class PlanetFolderLoader
     /// for directories containing a complete set of six planet
     /// heightmaps.
     /// </summary>
-    public static IReadOnlyList<Planet> Discover(string rootDirectory)
+    public static IReadOnlyList<Planet> Discover(
+        string rootDirectory)
     {
         if (!Directory.Exists(rootDirectory))
             throw new DirectoryNotFoundException(rootDirectory);
+
+        // Discover all PlanetGeneratorDefinitions once.
+        var definitions =
+            PlanetDefinitionLoader.Discover(rootDirectory);
 
         var planets = new List<Planet>();
 
         // Check the selected directory itself first.
         if (LooksLikePlanetDirectory(rootDirectory))
         {
-            planets.Add(Scan(rootDirectory));
+            planets.Add(
+                Scan(rootDirectory, definitions));
         }
 
         foreach (var directory in Directory.EnumerateDirectories(
@@ -71,13 +95,18 @@ public static class PlanetFolderLoader
         {
             if (LooksLikePlanetDirectory(directory))
             {
-                planets.Add(Scan(directory));
+                planets.Add(
+                    Scan(directory, definitions));
             }
         }
 
         return planets
-            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(p => p.SourceDirectory, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(
+                p => p.Name,
+                StringComparer.OrdinalIgnoreCase)
+            .ThenBy(
+                p => p.SourceDirectory,
+                StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
@@ -108,8 +137,15 @@ public static class PlanetFolderLoader
     {
         foreach (var alias in aliases)
         {
-            var suffix = material ? "_mat.png" : ".png";
-            var exact = Path.Combine(directory, alias + suffix);
+            var suffix =
+                material
+                    ? "_mat.png"
+                    : ".png";
+
+            var exact =
+                Path.Combine(
+                    directory,
+                    alias + suffix);
 
             if (File.Exists(exact))
                 return exact;
@@ -119,11 +155,15 @@ public static class PlanetFolderLoader
                 directory,
                 "*.png",
                 SearchOption.TopDirectoryOnly)
-            .FirstOrDefault(p =>
-                aliases.Any(a =>
-                    Path.GetFileNameWithoutExtension(p)
-                        .Equals(
-                            material ? a + "_mat" : a,
-                            StringComparison.OrdinalIgnoreCase)));
+            .FirstOrDefault(
+                p =>
+                    aliases.Any(
+                        a =>
+                            Path.GetFileNameWithoutExtension(p)
+                                .Equals(
+                                    material
+                                        ? a + "_mat"
+                                        : a,
+                                    StringComparison.OrdinalIgnoreCase)));
     }
 }

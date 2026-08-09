@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using System.IO;
 using System.Linq;
 using SEPS.Core;
 using SEPS.IO;
@@ -72,10 +73,19 @@ public partial class MainWindow : Window
             // V0.1.1:
             // If exactly one planet exists, select it automatically.
             //
-            // Multiple-planet selection UI is V0.1.2.
+            // Multiple-planet selection UI is V0.1.3.
             _planet = _discoveredPlanets[0];
 
             PlanetNameText.Text = _planet.Name;
+
+            PlanetSubtypeText.Text =
+                _planet.DataSubtypeId;
+
+            GeneratorDefinitionText.Text =
+                _planet.GeneratorDefinition != null
+                    ? $"✓ {Path.GetFileName(_planet.GeneratorDefinition.SourceFilePath)}"
+                    : "⚠ Not found";
+
             StatusText.Text = BuildStatus(_planet);
         }
         catch (Exception ex)
@@ -118,7 +128,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "v0.1.1 — Planet root discovery",
+                    "v0.1.2 — Planet definition association",
                 Margin = new Avalonia.Thickness(24),
                 TextWrapping =
                     Avalonia.Media.TextWrapping.Wrap
@@ -138,8 +148,46 @@ public partial class MainWindow : Window
             planet.Faces.Values.Count(
                 f => f.MaterialMapPath != null);
 
-        return
-            $"Detected height maps: {heightCount}/6\n" +
-            $"Detected material maps: {materialCount}/6";
+        var lines = new List<string>
+        {
+            $"SubtypeId: {planet.DataSubtypeId}",
+            $"Detected height maps: {heightCount}/6",
+            $"Detected material maps: {materialCount}/6"
+        };
+
+        if (planet.GeneratorDefinition is { } definition)
+        {
+            lines.Add(
+                $"Generator definition: " +
+                $"{Path.GetFileName(definition.SourceFilePath)}");
+
+            if (definition.HillParams is { } hills)
+            {
+                lines.Add(
+                    $"HillParams: {hills.Min} → {hills.Max}");
+            }
+
+            if (definition.SurfaceDetail is { } detail)
+            {
+                lines.Add(
+                    $"Surface detail: " +
+                    $"{detail.Texture ?? "none"}");
+            }
+
+            if (definition.SurfaceGravity is { } gravity)
+            {
+                lines.Add(
+                    $"Surface gravity: {gravity}");
+            }
+        }
+        else
+        {
+            lines.Add(
+                "Generator definition: NOT FOUND");
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            lines);
     }
 }

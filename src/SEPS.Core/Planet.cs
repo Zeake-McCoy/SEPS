@@ -64,9 +64,23 @@ public sealed class WaterSettings
 public sealed class Planet
 {
     public string SourceDirectory { get; init; } = string.Empty;
+
     public string Name { get; set; } = "Untitled Planet";
+
+    public string DataSubtypeId { get; set; } = string.Empty;
+
+    public PlanetGeneratorDefinition? GeneratorDefinition { get; set; }
+
+    public bool HasGeneratorDefinition =>
+        GeneratorDefinition != null;
+
     public double RadiusMeters { get; set; } = 60_000;
+
     public WaterSettings Water { get; } = new();
+
     public Dictionary<CubeFace, PlanetFace> Faces { get; } =
-        Enum.GetValues<CubeFace>().ToDictionary(f => f, f => new PlanetFace { Face = f });
+        Enum.GetValues<CubeFace>()
+            .ToDictionary(
+                f => f,
+                f => new PlanetFace { Face = f });
 }

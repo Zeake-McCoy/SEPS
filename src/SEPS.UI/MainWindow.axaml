@@ -109,7 +109,7 @@
                 FontSize="28"
                 HorizontalAlignment="Center"/>
             <TextBlock
-                Text="V0.2.0 — Rendering Foundation"
+                Text="V0.2.1 — Raw Map Renderer"
                 HorizontalAlignment="Center"
                 Opacity="0.65"/>
             <TextBlock

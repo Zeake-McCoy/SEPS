@@ -206,6 +206,8 @@ public partial class MainWindow : Window
                 : "⚠ Not found";
 
         RebuildSwitchPlanetMenu();
+
+        _ = LoadSelectedFaceAsync();
     }
 
     private void ClearPlanetSelection()
@@ -345,19 +347,118 @@ public partial class MainWindow : Window
         return result;
     }
 
-    private void Face_Click(
-        object? sender,
-        RoutedEventArgs e)
+    private async void Face_Click(
+    object? sender,
+    RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string tag } &&
-            Enum.TryParse<CubeFace>(
+        if (sender is not Button { Tag: string tag } ||
+            !Enum.TryParse<CubeFace>(
                 tag,
                 out var face))
         {
-            _selectedFace = face;
+            return;
+        }
 
-            FaceInfoText.Text =
-                $"Face: {face}";
+        _selectedFace =
+            face;
+
+        FaceInfoText.Text =
+            $"Face: {face}";
+
+        await LoadSelectedFaceAsync();
+    }
+
+    private async Task LoadSelectedFaceAsync()
+    {
+        if (_planet == null)
+        {
+            GlViewport.SetHeightMap(
+                null);
+
+            StatusText.Text =
+                "No planet selected.";
+
+            return;
+        }
+
+        var planetFace =
+            _planet.Faces[_selectedFace];
+
+        if (string.IsNullOrWhiteSpace(
+            planetFace.HeightMapPath))
+        {
+            GlViewport.SetHeightMap(
+                null);
+
+            StatusText.Text =
+                $"No heightmap found for {_selectedFace}.";
+
+            return;
+        }
+
+        var path =
+            planetFace.HeightMapPath;
+
+        try
+        {
+            StatusText.Text =
+                $"Loading {_selectedFace} heightmap...";
+
+            Console.WriteLine(
+                $"HEIGHTMAP LOAD: {_selectedFace}");
+
+            Console.WriteLine(
+                $"Path: {path}");
+
+            var heightMap =
+                await Task.Run(
+                    () =>
+                        PlanetImageLoader.LoadHeightMap(
+                            path));
+
+            ushort min =
+                ushort.MaxValue;
+
+            ushort max =
+                ushort.MinValue;
+
+            foreach (var sample in heightMap.Samples)
+            {
+                if (sample < min)
+                    min = sample;
+
+                if (sample > max)
+                    max = sample;
+            }
+
+            Console.WriteLine(
+                $"HEIGHTMAP LOADED: " +
+                $"{heightMap.Width}x{heightMap.Height}");
+
+            Console.WriteLine(
+                $"Samples: {heightMap.Samples.Length}");
+
+            Console.WriteLine(
+                $"Range: {min} → {max}");
+
+            GlViewport.SetHeightMap(
+                heightMap);
+
+            StatusText.Text =
+                $"{_selectedFace} heightmap loaded " +
+                $"({heightMap.Width}×{heightMap.Height}).";
+        }
+        catch (Exception ex)
+        {
+            GlViewport.SetHeightMap(
+                null);
+
+            StatusText.Text =
+                $"Unable to load {_selectedFace} heightmap: " +
+                ex.Message;
+
+            Console.WriteLine(
+                $"HEIGHTMAP LOAD FAILED: {ex}");
         }
     }
 
@@ -379,7 +480,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "v0.2.0 — OpenGL rendering foundation",
+                    "V0.2.1 — Raw Map Renderer",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =

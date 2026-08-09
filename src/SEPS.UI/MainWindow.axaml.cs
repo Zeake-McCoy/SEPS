@@ -379,7 +379,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "v0.1.3 — Planet switching",
+                    "v0.2.0 — OpenGL rendering foundation",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =

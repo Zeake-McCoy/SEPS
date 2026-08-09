@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:core="using:SEPS.Core"
+        xmlns:gl="using:SEPS.UI.Controls"        
         x:Class="SEPS.UI.MainWindow"
         Width="1400" Height="850"
         MinWidth="1000" MinHeight="650"
@@ -16,8 +17,16 @@
         <MenuItem Header="Exit" Click="Exit_Click"/>
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="Face Workspace" IsChecked="True" IsEnabled="False"/>
-        <MenuItem Header="Globe Workspace" IsEnabled="False"/>
+        <MenuItem Header="Face Workspace"
+                  IsChecked="True"
+                  IsEnabled="False"/>
+        <MenuItem Header="Globe Workspace"
+                  IsEnabled="False"/>
+        <Separator/>
+        <MenuItem Header="Debug">
+          <MenuItem Header="RGB Material Map"
+                    IsEnabled="False"/>
+        </MenuItem>
       </MenuItem>
       <MenuItem Header="_Help">
         <MenuItem Header="About SEPS" Click="About_Click"/>
@@ -36,6 +45,7 @@
         <Separator Margin="8,0"/>
         <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="4,0"/>
         <Button Content="Terrain"/>
+        <Button Content="Materials"/>
         <Button Content="Resources"/>
         <Button Content="Ecosystem"/>
       </StackPanel>
@@ -85,11 +95,28 @@
 
     <Border Background="#111111" Margin="8" CornerRadius="4">
       <Grid>
-        <Border x:Name="ViewportPlaceholder" Background="#151515" Padding="20">
-          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-            <TextBlock Text="SEPS Face Workspace" FontSize="28" HorizontalAlignment="Center"/>
-            <TextBlock Text="Open a Space Engineers planet folder to begin." HorizontalAlignment="Center" Opacity="0.7"/>
-            <TextBlock x:Name="StatusText" Text="Renderer foundation ready." HorizontalAlignment="Center" Opacity="0.5"/>
+        <gl:SEPSOpenGlViewport
+            x:Name="GlViewport"/>
+        <Border x:Name="ViewportOverlay"
+                Background="Transparent"
+                IsHitTestVisible="False">
+          <StackPanel
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Spacing="8">
+            <TextBlock
+                Text="SEPS OpenGL Renderer"
+                FontSize="28"
+                HorizontalAlignment="Center"/>
+            <TextBlock
+                Text="V0.2.0 — Rendering Foundation"
+                HorizontalAlignment="Center"
+                Opacity="0.65"/>
+            <TextBlock
+                x:Name="StatusText"
+                Text="Initializing renderer..."
+                HorizontalAlignment="Center"
+                Opacity="0.5"/>
           </StackPanel>
         </Border>
       </Grid>

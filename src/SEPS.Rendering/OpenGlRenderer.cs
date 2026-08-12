@@ -224,7 +224,7 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             $"{_textureWidth}x{_textureHeight}.");
     }
 
-    public void Render(
+        public void Render(
         int width,
         int height)
     {
@@ -233,11 +233,22 @@ public sealed unsafe class OpenGlRenderer : IDisposable
 
         var gl = _gl;
 
+        var viewportSize =
+            Math.Min(
+                width,
+                height);
+
+        var viewportX =
+            (width - viewportSize) / 2;
+
+        var viewportY =
+            (height - viewportSize) / 2;
+
         gl.Viewport(
-            0,
-            0,
-            (uint)Math.Max(width, 1),
-            (uint)Math.Max(height, 1));
+            viewportX,
+            viewportY,
+            (uint)Math.Max(viewportSize, 1),
+            (uint)Math.Max(viewportSize, 1));
 
         gl.ClearColor(
             0.055f,

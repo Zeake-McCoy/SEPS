@@ -7,7 +7,7 @@ public sealed class EditorState
 {
     public Planet? Planet { get; private set; }
     public CubeFace SelectedFace { get; set; } = CubeFace.Front;
-    public List<IRenderLayer> Layers { get; } =
+        public List<IRenderLayer> Layers { get; } =
     [
         new RenderLayer("terrain", "Terrain"),
         new RenderLayer("materials", "Materials / Biomes"),
@@ -18,6 +18,9 @@ public sealed class EditorState
         new RenderLayer("grid", "Geographic Grid"),
         new RenderLayer("wireframe", "Wireframe")
     ];
+
+    public MapViewportState Viewport { get; } =
+        new();
 
     public void SetPlanet(Planet planet) => Planet = planet;
 }

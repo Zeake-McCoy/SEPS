@@ -93,7 +93,14 @@
       </StackPanel>
     </Border>
 
-    <Border Background="#111111" Margin="8" CornerRadius="4">
+    <Border x:Name="MapWorkspace"
+        Background="#111111"
+        Margin="8"
+        CornerRadius="4"
+        Focusable="True"
+        PointerWheelChanged="MapWorkspace_PointerWheelChanged"
+        PointerPressed="MapWorkspace_PointerPressed"
+        KeyDown="MapWorkspace_KeyDown">
       <Grid>
         <gl:SEPSOpenGlViewport
             x:Name="GlViewport"/>

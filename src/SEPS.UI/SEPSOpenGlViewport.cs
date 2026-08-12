@@ -1,6 +1,8 @@
+using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
 using SEPS.Core;
+using SEPS.Editor;
 using SEPS.Rendering;
 
 namespace SEPS.UI.Controls;
@@ -11,9 +13,27 @@ public sealed class SEPSOpenGlViewport
     private readonly OpenGlRenderer _renderer =
         new();
 
+    private readonly MapViewportState _viewportState =
+    new();
+
     private bool _initialized;
 
     private HeightMap? _pendingHeightMap;
+
+    public MapViewportState ViewportState =>
+        _viewportState;
+
+    public SEPSOpenGlViewport()
+    {
+        Focusable = true;
+        IsTabStop = true;
+        IsHitTestVisible = true;
+
+        Console.WriteLine(
+            "INPUT: SEPSOpenGlViewport constructed. " +
+            $"Focusable={Focusable}, " +
+            $"HitTestVisible={IsHitTestVisible}");
+    }
 
     public void SetHeightMap(
         HeightMap? heightMap)
@@ -27,6 +47,12 @@ public sealed class SEPSOpenGlViewport
                 : $"Viewport: heightmap queued " +
                   $"{heightMap.Width}x{heightMap.Height}.");
 
+        if (_initialized)
+            RequestNextFrameRendering();
+    }
+
+    public void RequestViewportRedraw()
+    {
         if (_initialized)
             RequestNextFrameRendering();
     }
@@ -68,17 +94,6 @@ public sealed class SEPSOpenGlViewport
         GlInterface gl,
         int fb)
     {
-        Console.WriteLine(
-            $"OpenGL RENDER callback reached: " +
-            $"{Bounds.Width}x{Bounds.Height}, FB={fb}");
-
-        if (!_initialized)
-        {
-            Console.WriteLine(
-                "OpenGL render skipped: renderer not initialized.");
-
-            return;
-        }
 
         if (_pendingHeightMap != null)
         {
@@ -86,9 +101,6 @@ public sealed class SEPSOpenGlViewport
                 _pendingHeightMap;
 
             _pendingHeightMap = null;
-
-            Console.WriteLine(
-                "Viewport: uploading queued heightmap...");
 
             _renderer.SetHeightMap(
                 map);
@@ -100,7 +112,10 @@ public sealed class SEPSOpenGlViewport
                 (int)Bounds.Width),
             Math.Max(
                 1,
-                (int)Bounds.Height));
+                (int)Bounds.Height),
+            _viewportState.Zoom,
+            _viewportState.PanX,
+            _viewportState.PanY);
 
         RequestNextFrameRendering();
     }

@@ -1,3 +1,4 @@
+using Avalonia.Input;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -368,6 +369,80 @@ public partial class MainWindow : Window
         await LoadSelectedFaceAsync();
     }
 
+    private void MapWorkspace_PointerWheelChanged(
+        object? sender,
+        PointerWheelEventArgs e)
+    {
+        var delta = e.Delta.Y;
+
+        if (Math.Abs(delta) < double.Epsilon)
+            return;
+
+        var factor =
+            delta > 0
+                ? 1.15
+                : 1.0 / 1.15;
+
+        GlViewport.ViewportState.AdjustZoom(
+            factor);
+
+        GlViewport.RequestViewportRedraw();
+
+        e.Handled = true;
+    }
+
+    private void MapWorkspace_PointerPressed(
+        object? sender,
+        PointerPressedEventArgs e)
+    {
+        MapWorkspace.Focus(
+            NavigationMethod.Pointer);
+
+        e.Handled = true;
+    }
+
+    private void MapWorkspace_KeyDown(
+        object? sender,
+        KeyEventArgs e)
+    {
+        const double movement =
+            0.08;
+
+        switch (e.Key)
+        {
+            case Key.W:
+                GlViewport.ViewportState.Pan(
+                    0.0,
+                    movement);
+                break;
+
+            case Key.S:
+                GlViewport.ViewportState.Pan(
+                    0.0,
+                    -movement);
+                break;
+
+            case Key.A:
+                GlViewport.ViewportState.Pan(
+                    movement,
+                    0.0);
+                break;
+
+            case Key.D:
+                GlViewport.ViewportState.Pan(
+                    -movement,
+                    0.0);
+                break;
+
+            default:
+                return;
+        }
+
+        GlViewport.RequestViewportRedraw();
+
+        e.Handled = true;
+    }
+
     private async Task LoadSelectedFaceAsync()
     {
         if (_planet == null)
@@ -489,6 +564,20 @@ public partial class MainWindow : Window
         };
 
         await dialog.ShowDialog(this);
+    }
+
+    private static string DescribeInputSource(
+    object? source)
+    {
+        if (source is Avalonia.Controls.Control control)
+        {
+            return
+                $"{control.GetType().Name}" +
+                $" Name={control.Name ?? "<unnamed>"}";
+        }
+
+        return source?.GetType().Name
+            ?? "<null>";
     }
 
     private static string BuildStatus(

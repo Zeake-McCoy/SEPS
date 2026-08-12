@@ -14,6 +14,9 @@ public sealed unsafe class OpenGlRenderer : IDisposable
 
     private int _heightMapLocation;
 
+    private int _zoomLocation;
+    private int _panLocation;
+
     private int _textureWidth;
     private int _textureHeight;
 
@@ -36,11 +39,22 @@ public sealed unsafe class OpenGlRenderer : IDisposable
         layout (location = 0) in vec2 aPosition;
         layout (location = 1) in vec2 aTexCoord;
 
+        uniform float uZoom;
+        uniform vec2 uPan;
+
         out vec2 vTexCoord;
 
         void main()
         {
-            gl_Position = vec4(aPosition, 0.0, 1.0);
+            vec2 position =
+                (aPosition + uPan) * uZoom;
+
+            gl_Position =
+                vec4(
+                    position,
+                    0.0,
+                    1.0);
+
             vTexCoord = aTexCoord;
         }
         """;
@@ -80,9 +94,6 @@ public sealed unsafe class OpenGlRenderer : IDisposable
         _gl =
             GL.GetApi(getProcAddress);
 
-        Console.WriteLine(
-            "OpenGL renderer: creating shader program...");
-
         _shaderProgram =
             CreateShaderProgram();
 
@@ -91,8 +102,15 @@ public sealed unsafe class OpenGlRenderer : IDisposable
                 _shaderProgram,
                 "uHeightMap");
 
-        Console.WriteLine(
-            $"OpenGL renderer: uHeightMap location = {_heightMapLocation}");
+        _zoomLocation =
+            _gl.GetUniformLocation(
+                _shaderProgram,
+                "uZoom");
+
+        _panLocation =
+            _gl.GetUniformLocation(
+                _shaderProgram,
+                "uPan");
 
         _vertexArray =
             _gl.GenVertexArray();
@@ -142,9 +160,6 @@ public sealed unsafe class OpenGlRenderer : IDisposable
         _gl.BindBuffer(
             BufferTargetARB.ArrayBuffer,
             0);
-
-        Console.WriteLine(
-            "OpenGL renderer: geometry initialized.");
     }
 
     public void SetHeightMap(
@@ -159,11 +174,6 @@ public sealed unsafe class OpenGlRenderer : IDisposable
         }
 
         var gl = _gl;
-
-        Console.WriteLine(
-            $"OpenGL renderer: uploading heightmap " +
-            $"{heightMap.Width}x{heightMap.Height}...");
-
         if (_heightTexture == 0)
         {
             _heightTexture =
@@ -218,15 +228,14 @@ public sealed unsafe class OpenGlRenderer : IDisposable
 
         _textureHeight =
             heightMap.Height;
-
-        Console.WriteLine(
-            $"OpenGL renderer: heightmap uploaded " +
-            $"{_textureWidth}x{_textureHeight}.");
     }
 
         public void Render(
-        int width,
-        int height)
+            int width,
+            int height,
+            double zoom,
+            double panX,
+            double panY)
     {
         if (_gl == null)
             return;
@@ -261,6 +270,15 @@ public sealed unsafe class OpenGlRenderer : IDisposable
 
         gl.UseProgram(
             _shaderProgram);
+
+        gl.Uniform1(
+            _zoomLocation,
+            (float)zoom);
+
+        gl.Uniform2(
+            _panLocation,
+            (float)panX,
+            (float)panY);
 
         gl.ActiveTexture(
             TextureUnit.Texture0);

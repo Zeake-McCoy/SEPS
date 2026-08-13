@@ -5,6 +5,7 @@
         x:Class="SEPS.UI.MainWindow"
         Width="1400" Height="850"
         MinWidth="1000" MinHeight="650"
+        Opened="MainWindow_Opened"
         Title="SEPS — Space Engineers Planet Studio">
   <DockPanel>
     <Menu DockPanel.Dock="Top">
@@ -105,7 +106,9 @@
         PointerPressed="MapWorkspace_PointerPressed"
         PointerMoved="MapWorkspace_PointerMoved"
         PointerReleased="MapWorkspace_PointerReleased"
-        KeyDown="MapWorkspace_KeyDown">
+        KeyDown="MapWorkspace_KeyDown"
+        KeyUp="MapWorkspace_KeyUp"
+        LostFocus="MapWorkspace_LostFocus">
       <Grid>
         <gl:SEPSOpenGlViewport
             x:Name="GlViewport"/>
@@ -121,7 +124,7 @@
                 FontSize="28"
                 HorizontalAlignment="Center"/>
             <TextBlock
-                Text="V0.2.5 — Mouse Yaw Implementation"
+                Text="V0.2.6 — Navigation Refinements"
                 HorizontalAlignment="Center"
                 Opacity="0.65"/>
             <TextBlock

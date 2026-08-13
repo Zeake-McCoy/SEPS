@@ -3,6 +3,9 @@ using Avalonia.Input;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,6 +22,25 @@ public partial class MainWindow : Window
     private bool _middleMouseDragging;
 
     private Point _lastMousePosition;
+
+    private readonly HashSet<Key>
+        _navigationKeys =
+            new();
+
+    private readonly DispatcherTimer
+        _navigationTimer;
+
+    private readonly Stopwatch
+        _navigationClock =
+            Stopwatch.StartNew();
+
+    private double _lastNavigationTime;
+
+    private double _panVelocityX;
+
+    private double _panVelocityY;
+
+    private double _yawVelocity;
 
     // V0.1.1: currently loaded mod/root directory.
     private string? _planetRoot;
@@ -38,6 +60,19 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        _navigationTimer =
+            new DispatcherTimer
+            {
+                Interval =
+                    TimeSpan.FromMilliseconds(16)
+            };
+
+        _navigationTimer.Tick +=
+            NavigationTimer_Tick;
+
+        _lastNavigationTime =
+            _navigationClock.Elapsed.TotalSeconds;
     }
 
     private async void OpenPlanet_Click(
@@ -378,7 +413,16 @@ public partial class MainWindow : Window
         object? sender,
         RoutedEventArgs e)
     {
+        _navigationKeys.Clear();
+
+        _panVelocityX = 0.0;
+        _panVelocityY = 0.0;
+        _yawVelocity = 0.0;
+
+        _navigationTimer.Stop();
+
         GlViewport.ViewportState.Reset();
+
         GlViewport.RequestViewportRedraw();
 
         MapWorkspace.Focus(
@@ -488,52 +532,209 @@ public partial class MainWindow : Window
         object? sender,
         KeyEventArgs e)
     {
-        const double movement =
-            0.08;
-
         switch (e.Key)
         {
             case Key.W:
-                GlViewport.ViewportState.Pan(
-                    0.0,
-                    movement);
-                break;
-
             case Key.S:
-                GlViewport.ViewportState.Pan(
-                    0.0,
-                    -movement);
-                break;
-
             case Key.A:
-                GlViewport.ViewportState.Pan(
-                    -movement,
-                    0.0);
-                break;
-
             case Key.D:
-                GlViewport.ViewportState.Pan(
-                    movement,
-                    0.0);
-                break;
-
             case Key.Q:
-                GlViewport.ViewportState.AdjustYaw(
-                    -5.0);
-                break;
-
             case Key.E:
-                GlViewport.ViewportState.AdjustYaw(
-                    5.0);
-                break;
+                _navigationKeys.Add(
+                    e.Key);
 
-            default:
-                return;
+                _navigationTimer.Start();
+
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void MapWorkspace_KeyUp(
+        object? sender,
+        KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.W:
+            case Key.S:
+            case Key.A:
+            case Key.D:
+            case Key.Q:
+            case Key.E:
+                _navigationKeys.Remove(
+                    e.Key);
+
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void MapWorkspace_LostFocus(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        _navigationKeys.Clear();
+    }
+
+    private void NavigationTimer_Tick(
+        object? sender,
+        EventArgs e)
+    {
+        var now =
+            _navigationClock.Elapsed.TotalSeconds;
+
+        var deltaTime =
+            now -
+            _lastNavigationTime;
+
+        _lastNavigationTime =
+            now;
+
+        // Protect against a large jump if the UI thread was paused.
+        deltaTime =
+            Math.Clamp(
+                deltaTime,
+                0.0,
+                0.05);
+
+        const double panAcceleration =
+            4.0;
+
+        const double yawAcceleration =
+            360.0;
+
+        const double basePanSpeed =
+            0.65;
+
+        const double yawSpeed =
+            100.0;
+
+        var targetPanX =
+            0.0;
+
+        var targetPanY =
+            0.0;
+
+        var targetYaw =
+            0.0;
+
+        if (_navigationKeys.Contains(
+            Key.W))
+        {
+            targetPanY += 1.0;
         }
 
-        GlViewport.RequestViewportRedraw();
+        if (_navigationKeys.Contains(
+            Key.S))
+        {
+            targetPanY -= 1.0;
+        }
 
-        e.Handled = true;
+        if (_navigationKeys.Contains(
+            Key.A))
+        {
+            targetPanX -= 1.0;
+        }
+
+        if (_navigationKeys.Contains(
+            Key.D))
+        {
+            targetPanX += 1.0;
+        }
+
+        if (_navigationKeys.Contains(
+            Key.Q))
+        {
+            targetYaw -= 1.0;
+        }
+
+        if (_navigationKeys.Contains(
+            Key.E))
+        {
+            targetYaw += 1.0;
+        }
+
+        var zoom =
+            GlViewport.ViewportState.Zoom;
+
+        var panSpeed =
+            basePanSpeed /
+            Math.Max(
+                zoom,
+                1.0);
+
+        targetPanX *= panSpeed;
+        targetPanY *= panSpeed;
+        targetYaw *= yawSpeed;
+
+        _panVelocityX =
+            MoveTowards(
+                _panVelocityX,
+                targetPanX,
+                panAcceleration *
+                deltaTime);
+
+        _panVelocityY =
+            MoveTowards(
+                _panVelocityY,
+                targetPanY,
+                panAcceleration *
+                deltaTime);
+
+        _yawVelocity =
+            MoveTowards(
+                _yawVelocity,
+                targetYaw,
+                yawAcceleration *
+                deltaTime);
+
+        if (Math.Abs(_panVelocityX) > 0.000001 ||
+            Math.Abs(_panVelocityY) > 0.000001 ||
+            Math.Abs(_yawVelocity) > 0.001)
+        {
+            GlViewport.ViewportState.Pan(
+                _panVelocityX *
+                    deltaTime,
+                _panVelocityY *
+                    deltaTime);
+
+            GlViewport.ViewportState.AdjustYaw(
+                _yawVelocity *
+                    deltaTime);
+
+            GlViewport.RequestViewportRedraw();
+        }
+
+        var motionActive =
+            _navigationKeys.Count > 0 ||
+            Math.Abs(_panVelocityX) > 0.000001 ||
+            Math.Abs(_panVelocityY) > 0.000001 ||
+            Math.Abs(_yawVelocity) > 0.001;
+
+        if (!motionActive)
+        {
+            _navigationTimer.Stop();
+        }
+    }
+
+    private static double MoveTowards(
+        double current,
+        double target,
+        double maxDelta)
+    {
+        if (Math.Abs(
+                target -
+                current) <= maxDelta)
+        {
+            return target;
+        }
+
+        return current +
+            Math.Sign(
+                target -
+                current) *
+            maxDelta;
     }
 
     private async Task LoadSelectedFaceAsync()
@@ -630,6 +831,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void MainWindow_Opened(
+        object? sender,
+        EventArgs e)
+    {
+        MapWorkspace.Focus(
+            NavigationMethod.Pointer);
+    }
+
     private void Exit_Click(
         object? sender,
         RoutedEventArgs e) =>
@@ -648,7 +857,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "V0.2.5 — Mouse Yaw Implementation",
+                    "V0.2.6 — Navigation Refinements",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =
@@ -657,20 +866,6 @@ public partial class MainWindow : Window
         };
 
         await dialog.ShowDialog(this);
-    }
-
-    private static string DescribeInputSource(
-    object? source)
-    {
-        if (source is Avalonia.Controls.Control control)
-        {
-            return
-                $"{control.GetType().Name}" +
-                $" Name={control.Name ?? "<unnamed>"}";
-        }
-
-        return source?.GetType().Name
-            ?? "<null>";
     }
 
     private static string BuildStatus(

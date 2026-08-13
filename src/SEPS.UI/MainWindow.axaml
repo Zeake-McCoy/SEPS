@@ -23,6 +23,9 @@
         <MenuItem Header="Globe Workspace"
                   IsEnabled="False"/>
         <Separator/>
+        <MenuItem Header="Reset / Fit View"
+                  Click="ResetView_Click"/>
+        <Separator/>
         <MenuItem Header="Debug">
           <MenuItem Header="RGB Material Map"
                     IsEnabled="False"/>
@@ -116,7 +119,7 @@
                 FontSize="28"
                 HorizontalAlignment="Center"/>
             <TextBlock
-                Text="V0.2.1 — Raw Map Renderer"
+                Text="V0.2.4 — Expanded Nav functionality"
                 HorizontalAlignment="Center"
                 Opacity="0.65"/>
             <TextBlock

@@ -369,6 +369,17 @@ public partial class MainWindow : Window
         await LoadSelectedFaceAsync();
     }
 
+    private void ResetView_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        GlViewport.ViewportState.Reset();
+        GlViewport.RequestViewportRedraw();
+
+        MapWorkspace.Focus(
+            NavigationMethod.Pointer);
+    }
+
     private void MapWorkspace_PointerWheelChanged(
         object? sender,
         PointerWheelEventArgs e)
@@ -424,14 +435,24 @@ public partial class MainWindow : Window
 
             case Key.A:
                 GlViewport.ViewportState.Pan(
-                    movement,
+                    -movement,
                     0.0);
                 break;
 
             case Key.D:
                 GlViewport.ViewportState.Pan(
-                    -movement,
+                    movement,
                     0.0);
+                break;
+
+            case Key.Q:
+                GlViewport.ViewportState.AdjustYaw(
+                    -5.0);
+                break;
+
+            case Key.E:
+                GlViewport.ViewportState.AdjustYaw(
+                    5.0);
                 break;
 
             default:
@@ -555,7 +576,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "V0.2.1 — Raw Map Renderer",
+                    "V0.2.4 — Workspace navigation",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =

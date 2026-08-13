@@ -16,6 +16,7 @@ public sealed unsafe class OpenGlRenderer : IDisposable
 
     private int _zoomLocation;
     private int _panLocation;
+    private int _yawLocation;
 
     private int _textureWidth;
     private int _textureHeight;
@@ -41,13 +42,31 @@ public sealed unsafe class OpenGlRenderer : IDisposable
 
         uniform float uZoom;
         uniform vec2 uPan;
+        uniform float uYaw;
 
         out vec2 vTexCoord;
 
         void main()
         {
+            float angle =
+                radians(uYaw);
+
+            float c =
+                cos(angle);
+
+            float s =
+                sin(angle);
+
+            mat2 rotation =
+                mat2(
+                    c, -s,
+                    s,  c);
+
             vec2 position =
-                (aPosition + uPan) * uZoom;
+                rotation *
+                (aPosition + uPan);
+
+            position *= uZoom;
 
             gl_Position =
                 vec4(
@@ -111,6 +130,11 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             _gl.GetUniformLocation(
                 _shaderProgram,
                 "uPan");
+
+        _yawLocation =
+            _gl.GetUniformLocation(
+                _shaderProgram,
+                "uYaw");
 
         _vertexArray =
             _gl.GenVertexArray();
@@ -235,7 +259,8 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             int height,
             double zoom,
             double panX,
-            double panY)
+            double panY,
+            double yaw)
     {
         if (_gl == null)
             return;
@@ -279,6 +304,10 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             _panLocation,
             (float)panX,
             (float)panY);
+
+        gl.Uniform1(
+            _yawLocation,
+            (float)yaw);
 
         gl.ActiveTexture(
             TextureUnit.Texture0);

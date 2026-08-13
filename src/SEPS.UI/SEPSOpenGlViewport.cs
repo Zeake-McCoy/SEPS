@@ -1,4 +1,3 @@
-using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
 using SEPS.Core;
@@ -28,11 +27,6 @@ public sealed class SEPSOpenGlViewport
         Focusable = true;
         IsTabStop = true;
         IsHitTestVisible = true;
-
-        Console.WriteLine(
-            "INPUT: SEPSOpenGlViewport constructed. " +
-            $"Focusable={Focusable}, " +
-            $"HitTestVisible={IsHitTestVisible}");
     }
 
     public void SetHeightMap(
@@ -115,7 +109,8 @@ public sealed class SEPSOpenGlViewport
                 (int)Bounds.Height),
             _viewportState.Zoom,
             _viewportState.PanX,
-            _viewportState.PanY);
+            _viewportState.PanY,
+            _viewportState.Yaw);
 
         RequestNextFrameRendering();
     }

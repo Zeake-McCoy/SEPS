@@ -55,6 +55,42 @@
       </StackPanel>
     </Border>
 
+    <Border DockPanel.Dock="Left"
+            Width="82"
+            Background="#1B1B1B"
+            Padding="6">
+      <StackPanel Spacing="6">
+        <TextBlock
+            Text="Tools"
+            FontSize="14"
+            FontWeight="Bold"
+            HorizontalAlignment="Center"
+            Margin="0,2,0,6"/>
+        <Button
+            Content="Select"
+            IsEnabled="False"
+            Height="52"/>
+        <Button
+            Content="Inspect"
+            IsEnabled="False"
+            Height="52"/>
+        <Button
+            Content="Measure"
+            IsEnabled="False"
+            Height="52"/>
+        <Separator
+            Margin="0,4"/>
+        <Button
+            Content="Tool 1"
+            IsEnabled="False"
+            Height="52"/>
+        <Button
+            Content="Tool 2"
+            IsEnabled="False"
+            Height="52"/>
+      </StackPanel>
+    </Border>
+
     <Border DockPanel.Dock="Right" Width="250" Background="#202020" Padding="12">
       <StackPanel Spacing="10">
         <TextBlock Text="Layers" FontSize="20" FontWeight="Bold"/>
@@ -91,50 +127,51 @@
                   Margin="0,0,0,10"/>
         <Separator Margin="0,0,0,10"/>
         <TextBlock x:Name="FaceInfoText"
-                  Text="Face: Front"
-                  Margin="0,0,0,6"/>
+           Text="Face: Front"
+           Margin="0,0,0,4"/>
+        <TextBlock
+            Text="Viewport"
+            FontWeight="SemiBold"
+            Margin="0,4,0,0"/>
+        <TextBlock
+            x:Name="ViewportInfoText"
+            Text="Zoom: 1.00×"
+            Margin="0,0,0,4"/>
         <TextBlock Text="Water: static overlay (MVP)"/>
       </StackPanel>
     </Border>
-
-    <Border x:Name="MapWorkspace"
-        Background="#111111"
-        Margin="8"
-        CornerRadius="4"
-        Focusable="True"
-        PointerWheelChanged="MapWorkspace_PointerWheelChanged"
-        PointerPressed="MapWorkspace_PointerPressed"
-        PointerMoved="MapWorkspace_PointerMoved"
-        PointerReleased="MapWorkspace_PointerReleased"
-        KeyDown="MapWorkspace_KeyDown"
-        KeyUp="MapWorkspace_KeyUp"
-        LostFocus="MapWorkspace_LostFocus">
-      <Grid>
-        <gl:SEPSOpenGlViewport
-            x:Name="GlViewport"/>
-        <Border x:Name="ViewportOverlay"
-                Background="Transparent"
-                IsHitTestVisible="False">
-          <StackPanel
-              HorizontalAlignment="Center"
-              VerticalAlignment="Center"
-              Spacing="8">
-            <TextBlock
-                Text="SEPS OpenGL Renderer"
-                FontSize="28"
-                HorizontalAlignment="Center"/>
-            <TextBlock
-                Text="V0.2.6 — Navigation Refinements"
-                HorizontalAlignment="Center"
-                Opacity="0.65"/>
-            <TextBlock
-                x:Name="StatusText"
-                Text="Initializing renderer..."
-                HorizontalAlignment="Center"
-                Opacity="0.5"/>
-          </StackPanel>
-        </Border>
-      </Grid>
-    </Border>
+    <Grid RowDefinitions="*,Auto">
+      <Border x:Name="MapWorkspace"
+              Grid.Row="0"
+              Background="#111111"
+              Margin="8,8,8,4"
+              CornerRadius="4"
+              Focusable="True"
+              PointerWheelChanged="MapWorkspace_PointerWheelChanged"
+              PointerPressed="MapWorkspace_PointerPressed"
+              PointerMoved="MapWorkspace_PointerMoved"
+              PointerReleased="MapWorkspace_PointerReleased"
+              KeyDown="MapWorkspace_KeyDown"
+              KeyUp="MapWorkspace_KeyUp"
+              LostFocus="MapWorkspace_LostFocus">
+        <Grid>
+          <gl:SEPSOpenGlViewport
+              x:Name="GlViewport"/>
+          <Border x:Name="ViewportOverlay"
+                  Background="Transparent"
+                  IsHitTestVisible="False"/>
+        </Grid>
+      </Border>
+      <Border Grid.Row="1"
+              Background="#1B1B1B"
+              Margin="8,0,8,8"
+              Padding="6,4">
+        <TextBlock
+            x:Name="StatusText"
+            Text="Initializing renderer..."
+            VerticalAlignment="Center"
+            Opacity="0.75"/>
+      </Border>
+    </Grid>
   </DockPanel>
 </Window>

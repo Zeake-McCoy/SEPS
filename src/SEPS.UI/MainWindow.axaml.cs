@@ -425,8 +425,17 @@ public partial class MainWindow : Window
 
         GlViewport.RequestViewportRedraw();
 
+        UpdateViewportInfo();
+
         MapWorkspace.Focus(
             NavigationMethod.Pointer);
+    }
+
+    private void UpdateViewportInfo()
+    {
+        ViewportInfoText.Text =
+            $"Zoom: " +
+            $"{GlViewport.ViewportState.Zoom:0.00}×";
     }
 
     private void MapWorkspace_PointerWheelChanged(
@@ -447,6 +456,8 @@ public partial class MainWindow : Window
             factor);
 
         GlViewport.RequestViewportRedraw();
+
+        UpdateViewportInfo();
 
         e.Handled = true;
     }
@@ -704,6 +715,8 @@ public partial class MainWindow : Window
                     deltaTime);
 
             GlViewport.RequestViewportRedraw();
+
+            UpdateViewportInfo();
         }
 
         var motionActive =
@@ -835,6 +848,8 @@ public partial class MainWindow : Window
         object? sender,
         EventArgs e)
     {
+        UpdateViewportInfo();
+        
         MapWorkspace.Focus(
             NavigationMethod.Pointer);
     }
@@ -857,7 +872,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "V0.2.6 — Navigation Refinements",
+                    "V0.2.7 — Map Workspace UI Foundation",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =

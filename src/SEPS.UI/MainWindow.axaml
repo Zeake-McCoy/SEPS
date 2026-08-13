@@ -103,6 +103,8 @@
         Focusable="True"
         PointerWheelChanged="MapWorkspace_PointerWheelChanged"
         PointerPressed="MapWorkspace_PointerPressed"
+        PointerMoved="MapWorkspace_PointerMoved"
+        PointerReleased="MapWorkspace_PointerReleased"
         KeyDown="MapWorkspace_KeyDown">
       <Grid>
         <gl:SEPSOpenGlViewport
@@ -119,7 +121,7 @@
                 FontSize="28"
                 HorizontalAlignment="Center"/>
             <TextBlock
-                Text="V0.2.4 — Expanded Nav functionality"
+                Text="V0.2.5 — Mouse Yaw Implementation"
                 HorizontalAlignment="Center"
                 Opacity="0.65"/>
             <TextBlock

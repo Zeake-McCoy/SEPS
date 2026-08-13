@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Input;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -14,6 +15,10 @@ public partial class MainWindow : Window
 {
     private Planet? _planet;
     private CubeFace _selectedFace = CubeFace.Front;
+
+    private bool _middleMouseDragging;
+
+    private Point _lastMousePosition;
 
     // V0.1.1: currently loaded mod/root directory.
     private string? _planetRoot;
@@ -409,6 +414,73 @@ public partial class MainWindow : Window
         MapWorkspace.Focus(
             NavigationMethod.Pointer);
 
+        var properties =
+            e.GetCurrentPoint(
+                MapWorkspace).Properties;
+
+        if (properties.IsMiddleButtonPressed)
+        {
+            _middleMouseDragging = true;
+
+            _lastMousePosition =
+                e.GetPosition(
+                    MapWorkspace);
+
+            e.Pointer.Capture(
+                MapWorkspace);
+        }
+
+        e.Handled = true;
+    }
+
+    private void MapWorkspace_PointerMoved(
+        object? sender,
+        PointerEventArgs e)
+    {
+        if (!_middleMouseDragging)
+            return;
+
+        var currentPosition =
+            e.GetPosition(
+                MapWorkspace);
+
+        var deltaX =
+            currentPosition.X -
+            _lastMousePosition.X;
+
+        _lastMousePosition =
+            currentPosition;
+
+        if (Math.Abs(deltaX) <
+            double.Epsilon)
+        {
+            return;
+        }
+
+        const double yawSensitivity =
+            0.35;
+
+        GlViewport.ViewportState.AdjustYaw(
+            deltaX *
+            yawSensitivity);
+
+        GlViewport.RequestViewportRedraw();
+
+        e.Handled = true;
+    }
+
+    private void MapWorkspace_PointerReleased(
+        object? sender,
+        PointerReleasedEventArgs e)
+    {
+        if (!_middleMouseDragging)
+            return;
+
+        _middleMouseDragging = false;
+
+        e.Pointer.Capture(
+            null);
+
         e.Handled = true;
     }
 
@@ -576,7 +648,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "V0.2.4 — Workspace navigation",
+                    "V0.2.5 — Mouse Yaw Implementation",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =

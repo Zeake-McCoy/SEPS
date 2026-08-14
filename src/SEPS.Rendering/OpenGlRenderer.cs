@@ -21,6 +21,13 @@ public sealed unsafe class OpenGlRenderer : IDisposable
     private int _textureWidth;
     private int _textureHeight;
 
+    public bool IsInitialized =>
+    _gl != null;
+    public int TextureWidth =>
+        _textureWidth;
+    public int TextureHeight =>
+        _textureHeight;
+
     private static readonly float[] Vertices =
     {
         // Position      UV

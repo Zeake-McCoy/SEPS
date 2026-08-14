@@ -11,16 +11,21 @@ public sealed class SEPSOpenGlViewport
 {
     private readonly OpenGlRenderer _renderer =
         new();
-
     private readonly MapViewportState _viewportState =
     new();
 
     private bool _initialized;
-
     private HeightMap? _pendingHeightMap;
 
     public MapViewportState ViewportState =>
         _viewportState;
+    public bool IsRendererInitialized =>
+    _initialized;
+
+    public int RendererTextureWidth =>
+        _renderer.TextureWidth;
+    public int RendererTextureHeight =>
+        _renderer.TextureHeight;
 
     public SEPSOpenGlViewport()
     {

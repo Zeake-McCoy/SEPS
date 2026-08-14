@@ -19,27 +19,27 @@ public partial class MainWindow : Window
     private Planet? _planet;
     private CubeFace _selectedFace = CubeFace.Front;
 
-    private bool _middleMouseDragging;
+    private bool _heightMapLoaded;
+    private int _heightMapWidth;
+    private int _heightMapHeight;
+    private ushort _heightMapMin;
+    private ushort _heightMapMax;
 
+    private bool _middleMouseDragging;
     private Point _lastMousePosition;
 
     private readonly HashSet<Key>
         _navigationKeys =
             new();
-
     private readonly DispatcherTimer
         _navigationTimer;
-
     private readonly Stopwatch
         _navigationClock =
             Stopwatch.StartNew();
 
     private double _lastNavigationTime;
-
     private double _panVelocityX;
-
     private double _panVelocityY;
-
     private double _yawVelocity;
 
     // V0.1.1: currently loaded mod/root directory.
@@ -403,6 +403,9 @@ public partial class MainWindow : Window
         _selectedFace =
             face;
 
+        _heightMapLoaded =
+            false;
+
         FaceInfoText.Text =
             $"Face: {face}";
 
@@ -429,6 +432,202 @@ public partial class MainWindow : Window
 
         MapWorkspace.Focus(
             NavigationMethod.Pointer);
+    }
+
+    private async void Diagnostics_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        var dialog =
+            new Window
+            {
+                Title =
+                    "SEPS Diagnostics",
+                Width =
+                    560,
+                Height =
+                    620,
+                MinWidth =
+                    500,
+                MinHeight =
+                    500,
+                CanResize =
+                    true,
+                WindowStartupLocation =
+                    WindowStartupLocation.CenterOwner
+            };
+
+        var diagnostics =
+            BuildDiagnosticsText();
+
+        var textBlock =
+            new TextBlock
+            {
+                Text =
+                    diagnostics,
+                FontFamily =
+                    new Avalonia.Media.FontFamily(
+                        "Consolas"),
+                FontSize =
+                    13,
+                TextWrapping =
+                    Avalonia.Media.TextWrapping.NoWrap
+            };
+
+        var closeButton =
+            new Button
+            {
+                Content =
+                    "Close",
+                HorizontalAlignment =
+                    Avalonia.Layout.HorizontalAlignment.Right,
+                MinWidth =
+                    90
+            };
+
+        closeButton.Click +=
+            (_, _) =>
+                dialog.Close();
+
+        dialog.Content =
+            new StackPanel
+            {
+                Margin =
+                    new Avalonia.Thickness(18),
+                Spacing =
+                    12,
+                Children =
+                {
+                    textBlock,
+                    closeButton
+                }
+            };
+
+        await dialog.ShowDialog(this);
+    }
+
+    private string BuildDiagnosticsText()
+    {
+        var lines =
+            new List<string>();
+
+        lines.Add(
+            "SEPS Diagnostics");
+
+        lines.Add(
+            "==============================");
+
+        lines.Add(
+            "Application");
+
+        lines.Add(
+            "  Version: V0.2.8");
+
+        lines.Add(
+            "  Runtime: " +
+            Environment.Version);
+
+        lines.Add(string.Empty);
+
+        lines.Add(
+            "Planet");
+
+        lines.Add(
+            "  Name: " +
+            (_planet?.Name ??
+            "<none>"));
+
+        lines.Add(
+            "  SubtypeId: " +
+            (_planet?.DataSubtypeId ??
+            "<none>"));
+
+        lines.Add(
+            "  Selected face: " +
+            _selectedFace);
+
+        var heightCount =
+            _planet?.Faces.Values.Count(
+                f => f.HeightMapPath != null)
+            ?? 0;
+
+        var materialCount =
+            _planet?.Faces.Values.Count(
+                f => f.MaterialMapPath != null)
+            ?? 0;
+
+        lines.Add(
+            $"  Heightmaps: {heightCount}/6");
+
+        lines.Add(
+            $"  Material maps: {materialCount}/6");
+
+        lines.Add(string.Empty);
+
+        lines.Add(
+            "Heightmap");
+
+        if (_heightMapLoaded)
+        {
+            lines.Add(
+                $"  Dimensions: " +
+                $"{_heightMapWidth} × " +
+                $"{_heightMapHeight}");
+
+            lines.Add(
+                "  Bit depth: 16-bit");
+
+            lines.Add(
+                $"  Range: " +
+                $"{_heightMapMin} → " +
+                $"{_heightMapMax}");
+        }
+        else
+        {
+            lines.Add(
+                "  No heightmap loaded.");
+        }
+
+        lines.Add(string.Empty);
+
+        lines.Add(
+            "Viewport");
+
+        lines.Add(
+            $"  Zoom: " +
+            $"{GlViewport.ViewportState.Zoom:0.0000}×");
+
+        lines.Add(
+            $"  Pan X: " +
+            $"{GlViewport.ViewportState.PanX:0.0000}");
+
+        lines.Add(
+            $"  Pan Y: " +
+            $"{GlViewport.ViewportState.PanY:0.0000}");
+
+        lines.Add(
+            $"  Yaw: " +
+            $"{GlViewport.ViewportState.Yaw:0.00}°");
+
+        lines.Add(string.Empty);
+
+        lines.Add(
+            "Renderer");
+
+        lines.Add(
+            "  OpenGL initialized: " +
+            (GlViewport.IsRendererInitialized
+                ? "Yes"
+                : "No"));
+
+        lines.Add(
+            $"  Texture: " +
+            $"{GlViewport.RendererTextureWidth} × " +
+            $"{GlViewport.RendererTextureHeight}");
+
+        return string.Join(
+            Environment.NewLine,
+            lines);
     }
 
     private void UpdateViewportInfo()
@@ -757,6 +956,12 @@ public partial class MainWindow : Window
             GlViewport.SetHeightMap(
                 null);
 
+            _heightMapLoaded = false;
+            _heightMapWidth = 0;
+            _heightMapHeight = 0;
+            _heightMapMin = 0;
+            _heightMapMax = 0;
+
             StatusText.Text =
                 "No planet selected.";
 
@@ -771,6 +976,12 @@ public partial class MainWindow : Window
         {
             GlViewport.SetHeightMap(
                 null);
+
+            _heightMapLoaded = false;
+            _heightMapWidth = 0;
+            _heightMapHeight = 0;
+            _heightMapMin = 0;
+            _heightMapMax = 0;
 
             StatusText.Text =
                 $"No heightmap found for {_selectedFace}.";
@@ -812,6 +1023,20 @@ public partial class MainWindow : Window
                 if (sample > max)
                     max = sample;
             }
+
+            _heightMapLoaded = true;
+
+            _heightMapWidth =
+                heightMap.Width;
+
+            _heightMapHeight =
+                heightMap.Height;
+
+            _heightMapMin =
+                min;
+
+            _heightMapMax =
+                max;
 
             Console.WriteLine(
                 $"HEIGHTMAP LOADED: " +
@@ -872,7 +1097,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "V0.2.7 — Map Workspace UI Foundation",
+                    "V0.2.8 — Diagnostics Implementation",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =

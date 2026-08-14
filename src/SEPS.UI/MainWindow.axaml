@@ -27,13 +27,18 @@
         <MenuItem Header="Reset / Fit View"
                   Click="ResetView_Click"/>
         <Separator/>
-        <MenuItem Header="Debug">
-          <MenuItem Header="RGB Material Map"
-                    IsEnabled="False"/>
-        </MenuItem>
       </MenuItem>
       <MenuItem Header="_Help">
-        <MenuItem Header="About SEPS" Click="About_Click"/>
+      <MenuItem Header="Diagnostics">
+          <MenuItem Header="Open Diagnostics…"
+                    Click="Diagnostics_Click"/>
+          <Separator/>
+          <MenuItem Header="RGB Material Map"
+                    IsEnabled="False"/>
+      </MenuItem>
+      <Separator/>
+      <MenuItem Header="About SEPS"
+                Click="About_Click"/>
       </MenuItem>
     </Menu>
 

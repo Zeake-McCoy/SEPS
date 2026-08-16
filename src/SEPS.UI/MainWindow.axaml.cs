@@ -10,12 +10,16 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SEPS.Core;
+using SEPS.Editor;
 using SEPS.IO;
 
 namespace SEPS.UI;
 
 public partial class MainWindow : Window
 {
+    private readonly EditorState _editorState =
+    new();
+
     private Planet? _planet;
     private CubeFace _selectedFace = CubeFace.Front;
 
@@ -139,6 +143,9 @@ public partial class MainWindow : Window
             _planet =
                 _discoveredPlanets[0];
 
+            _editorState.SetPlanet(
+                _planet);
+
             _hasUnsavedChanges = false;
 
             UpdatePlanetSelectionUi();
@@ -204,8 +211,9 @@ public partial class MainWindow : Window
 
         _planet = planet;
 
-        // Once we have real editing, this will only be reset
-        // after saving/discarding the previous planet.
+        _editorState.SetPlanet(
+            planet);
+
         _hasUnsavedChanges = false;
 
         UpdatePlanetSelectionUi();
@@ -968,12 +976,49 @@ public partial class MainWindow : Window
             return;
         }
 
+        var session =
+            _editorState.Session;
+
+        if (session == null)
+        {
+            StatusText.Text =
+                "No active planet editing session.";
+
+            GlViewport.SetHeightMap(
+                null);
+
+            return;
+        }
+
         var planetFace =
             _planet.Faces[_selectedFace];
 
+        var heightAsset =
+            session.GetAsset(
+                _selectedFace,
+                MapKind.Height);
+
+        if (heightAsset.HeightMap != null)
+        {
+            var heightMap =
+                heightAsset.HeightMap;
+
+            UpdateHeightMapDiagnostics(
+                heightMap);
+
+            GlViewport.SetHeightMap(
+                heightMap);
+
+            StatusText.Text =
+                $"{_selectedFace} heightmap reused " +
+                $"({heightMap.Width}×{heightMap.Height}).";
+
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(
             planetFace.HeightMapPath))
-        {
+        {   
             GlViewport.SetHeightMap(
                 null);
 
@@ -1009,34 +1054,11 @@ public partial class MainWindow : Window
                         PlanetImageLoader.LoadHeightMap(
                             path));
 
-            ushort min =
-                ushort.MaxValue;
+            UpdateHeightMapDiagnostics(
+                heightMap);
 
-            ushort max =
-                ushort.MinValue;
-
-            foreach (var sample in heightMap.Samples)
-            {
-                if (sample < min)
-                    min = sample;
-
-                if (sample > max)
-                    max = sample;
-            }
-
-            _heightMapLoaded = true;
-
-            _heightMapWidth =
-                heightMap.Width;
-
-            _heightMapHeight =
-                heightMap.Height;
-
-            _heightMapMin =
-                min;
-
-            _heightMapMax =
-                max;
+            heightAsset.SetHeightMap(
+                heightMap);
 
             Console.WriteLine(
                 $"HEIGHTMAP LOADED: " +
@@ -1046,7 +1068,7 @@ public partial class MainWindow : Window
                 $"Samples: {heightMap.Samples.Length}");
 
             Console.WriteLine(
-                $"Range: {min} → {max}");
+                $"Range: {_heightMapMin} → {_heightMapMax}");
 
             GlViewport.SetHeightMap(
                 heightMap);
@@ -1067,6 +1089,41 @@ public partial class MainWindow : Window
             Console.WriteLine(
                 $"HEIGHTMAP LOAD FAILED: {ex}");
         }
+    }
+
+    private void UpdateHeightMapDiagnostics(
+        HeightMap heightMap)
+    {
+        ushort min =
+            ushort.MaxValue;
+
+        ushort max =
+            ushort.MinValue;
+
+        foreach (var sample in
+                heightMap.Samples)
+        {
+            if (sample < min)
+                min = sample;
+
+            if (sample > max)
+                max = sample;
+        }
+
+        _heightMapLoaded =
+            true;
+
+        _heightMapWidth =
+            heightMap.Width;
+
+        _heightMapHeight =
+            heightMap.Height;
+
+        _heightMapMin =
+            min;
+
+        _heightMapMax =
+            max;
     }
 
     private void MainWindow_Opened(

@@ -19,10 +19,10 @@ public enum MapKind
 public sealed class PlanetFace
 {
     public CubeFace Face { get; init; }
+
     public string? HeightMapPath { get; set; }
+
     public string? MaterialMapPath { get; set; }
-    public HeightMap? Height { get; set; }
-    public MaterialMap? Material { get; set; }
 }
 
 public sealed class HeightMap

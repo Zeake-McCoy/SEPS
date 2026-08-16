@@ -6,6 +6,7 @@ namespace SEPS.Editor;
 public sealed class EditorState
 {
     public Planet? Planet { get; private set; }
+    public PlanetEditingSession? Session { get; private set; }
     public CubeFace SelectedFace { get; set; } = CubeFace.Front;
         public List<IRenderLayer> Layers { get; } =
     [
@@ -22,5 +23,14 @@ public sealed class EditorState
     public MapViewportState Viewport { get; } =
         new();
 
-    public void SetPlanet(Planet planet) => Planet = planet;
+    public void SetPlanet(Planet planet)
+    {
+        Session?
+            .DiscardAll();
+        Planet =
+            planet;
+        Session =
+            new PlanetEditingSession(
+                planet);
+    }
 }

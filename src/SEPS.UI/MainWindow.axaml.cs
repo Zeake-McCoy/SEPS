@@ -396,17 +396,50 @@ public partial class MainWindow : Window
         return result;
     }
 
-    private async void Face_Click(
-    object? sender,
-    RoutedEventArgs e)
+    private void UnloadInactiveFaceAssets(
+        CubeFace face)
     {
-        if (sender is not Button { Tag: string tag } ||
-            !Enum.TryParse<CubeFace>(
-                tag,
-                out var face))
+        var session =
+            _editorState.Session;
+
+        if (session == null)
+            return;
+
+        var unloaded =
+            session.TryUnloadCleanAsset(
+                face,
+                MapKind.Height);
+
+        if (!unloaded)
+        {
+            Console.WriteLine(
+                $"HEIGHTMAP RETAINED: " +
+                $"{face} has unsaved changes.");
+        }
+    }
+
+    private void Face_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not Button button)
+            return;
+
+        if (!Enum.TryParse<CubeFace>(
+            button.Tag?.ToString(),
+            out var face))
         {
             return;
         }
+
+        if (face == _selectedFace)
+            return;
+
+        var oldFace =
+            _selectedFace;
+
+        UnloadInactiveFaceAssets(
+            oldFace);
 
         _selectedFace =
             face;
@@ -417,7 +450,7 @@ public partial class MainWindow : Window
         FaceInfoText.Text =
             $"Face: {face}";
 
-        await LoadSelectedFaceAsync();
+        _ = LoadSelectedFaceAsync();
     }
 
     private void ResetView_Click(
@@ -1154,7 +1187,8 @@ public partial class MainWindow : Window
             {
                 Text =
                     "Space Engineers Planet Studio\n\n" +
-                    "V0.2.8 — Diagnostics Implementation",
+                    "V0.2.8 — Diagnostics Implementation\n\n" +
+                    "Funky Little Planet Thing - TheOnlyAce 01/09/26 ",
                 Margin =
                     new Avalonia.Thickness(24),
                 TextWrapping =

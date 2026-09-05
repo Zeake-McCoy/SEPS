@@ -57,16 +57,17 @@ public sealed class MapAssetState
         IsDirty = false;
     }
 
-    public void Unload()
+    public bool TryUnload()
     {
         if (IsDirty)
         {
-            throw new InvalidOperationException(
-                "Cannot unload a dirty map asset.");
+            return false;
         }
 
         HeightMap = null;
         MaterialMap = null;
+
+        return true;
     }
 
     public void Discard()

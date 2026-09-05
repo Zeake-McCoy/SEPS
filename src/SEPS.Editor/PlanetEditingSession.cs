@@ -59,12 +59,12 @@ public sealed class PlanetEditingSession
             .MarkClean();
     }
 
-    public void UnloadCleanAsset(
+    public bool TryUnloadCleanAsset(
         CubeFace face,
         MapKind kind)
     {
-        GetAsset(face, kind)
-            .Unload();
+        return GetAsset(face, kind)
+            .TryUnload();
     }
 
     public void DiscardAll()

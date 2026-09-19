@@ -54,12 +54,16 @@ public partial class MainWindow : Window
         Array.Empty<Planet>();
 
     // Editing infrastructure.
-    // This will remain false until actual editing is implemented.
-    private bool _hasUnsavedChanges;
+    private bool HasUnsavedChanges =>
+        _editorState.Session?.HasUnsavedChanges
+        ?? false;
 
     // Prevents programmatic ComboBox updates from triggering
     // planet switching recursively.
     private bool _updatingPlanetSelector;
+
+    // V0.2.9 Invalidates stale asynchronous face loads.
+    private int _faceLoadGeneration;
 
     public MainWindow()
     {
@@ -83,7 +87,7 @@ public partial class MainWindow : Window
         object? sender,
         RoutedEventArgs e)
     {
-        if (_hasUnsavedChanges)
+        if (HasUnsavedChanges)
         {
             var discard =
                 await ConfirmDiscardChangesAsync();
@@ -129,7 +133,6 @@ public partial class MainWindow : Window
             if (_discoveredPlanets.Count == 0)
             {
                 _planet = null;
-                _hasUnsavedChanges = false;
 
                 ClearPlanetSelection();
 
@@ -146,7 +149,6 @@ public partial class MainWindow : Window
             _editorState.SetPlanet(
                 _planet);
 
-            _hasUnsavedChanges = false;
 
             UpdatePlanetSelectionUi();
 
@@ -159,7 +161,6 @@ public partial class MainWindow : Window
             _discoveredPlanets =
                 Array.Empty<Planet>();
 
-            _hasUnsavedChanges = false;
 
             ClearPlanetSelection();
 
@@ -197,7 +198,7 @@ public partial class MainWindow : Window
         if (ReferenceEquals(_planet, planet))
             return;
 
-        if (_hasUnsavedChanges)
+        if (HasUnsavedChanges)
         {
             var discard =
                 await ConfirmDiscardChangesAsync();
@@ -209,12 +210,12 @@ public partial class MainWindow : Window
             }
         }
 
+        _faceLoadGeneration++;
+
         _planet = planet;
 
         _editorState.SetPlanet(
             planet);
-
-        _hasUnsavedChanges = false;
 
         UpdatePlanetSelectionUi();
 
@@ -396,6 +397,7 @@ public partial class MainWindow : Window
         return result;
     }
 
+    
     private void UnloadInactiveFaceAssets(
         CubeFace face)
     {
@@ -405,19 +407,32 @@ public partial class MainWindow : Window
         if (session == null)
             return;
 
-        var unloaded =
+        var heightUnloaded =
             session.TryUnloadCleanAsset(
                 face,
                 MapKind.Height);
 
-        if (!unloaded)
+        if (!heightUnloaded)
         {
             Console.WriteLine(
                 $"HEIGHTMAP RETAINED: " +
                 $"{face} has unsaved changes.");
         }
+
+        var materialUnloaded =
+            session.TryUnloadCleanAsset(
+                face,
+                MapKind.Material);
+
+        if (!materialUnloaded)
+        {
+            Console.WriteLine(
+                $"MATERIAL MAP RETAINED: " +
+                $"{face} has unsaved changes.");
+        }
     }
 
+    
     private void Face_Click(
         object? sender,
         RoutedEventArgs e)
@@ -438,14 +453,21 @@ public partial class MainWindow : Window
         var oldFace =
             _selectedFace;
 
+        // Invalidate any in-flight face load.
+        _faceLoadGeneration++;
+
         UnloadInactiveFaceAssets(
             oldFace);
 
         _selectedFace =
             face;
 
-        _heightMapLoaded =
-            false;
+        // Reset diagnostics for the newly selected face.
+        _heightMapLoaded = false;
+        _heightMapWidth = 0;
+        _heightMapHeight = 0;
+        _heightMapMin = 0;
+        _heightMapMax = 0;
 
         FaceInfoText.Text =
             $"Face: {face}";
@@ -562,7 +584,7 @@ public partial class MainWindow : Window
             "Application");
 
         lines.Add(
-            "  Version: V0.2.8");
+            "  Version: V0.2.9");
 
         lines.Add(
             "  Runtime: " +
@@ -989,13 +1011,23 @@ public partial class MainWindow : Window
                 current) *
             maxDelta;
     }
-
+    
     private async Task LoadSelectedFaceAsync()
     {
-        if (_planet == null)
+        var generation = ++_faceLoadGeneration;
+        var planet = _planet;
+        var session = _editorState.Session;
+        var face = _selectedFace;
+
+        bool IsCurrentLoad() =>
+            generation == _faceLoadGeneration &&
+            ReferenceEquals(planet, _planet) &&
+            ReferenceEquals(session, _editorState.Session) &&
+            face == _selectedFace;
+
+        if (planet == null)
         {
-            GlViewport.SetHeightMap(
-                null);
+            GlViewport.SetHeightMap(null);
 
             _heightMapLoaded = false;
             _heightMapWidth = 0;
@@ -1003,57 +1035,13 @@ public partial class MainWindow : Window
             _heightMapMin = 0;
             _heightMapMax = 0;
 
-            StatusText.Text =
-                "No planet selected.";
-
+            StatusText.Text = "No planet selected.";
             return;
         }
-
-        var session =
-            _editorState.Session;
 
         if (session == null)
         {
-            StatusText.Text =
-                "No active planet editing session.";
-
-            GlViewport.SetHeightMap(
-                null);
-
-            return;
-        }
-
-        var planetFace =
-            _planet.Faces[_selectedFace];
-
-        var heightAsset =
-            session.GetAsset(
-                _selectedFace,
-                MapKind.Height);
-
-        if (heightAsset.HeightMap != null)
-        {
-            var heightMap =
-                heightAsset.HeightMap;
-
-            UpdateHeightMapDiagnostics(
-                heightMap);
-
-            GlViewport.SetHeightMap(
-                heightMap);
-
-            StatusText.Text =
-                $"{_selectedFace} heightmap reused " +
-                $"({heightMap.Width}×{heightMap.Height}).";
-
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            planetFace.HeightMapPath))
-        {   
-            GlViewport.SetHeightMap(
-                null);
+            GlViewport.SetHeightMap(null);
 
             _heightMapLoaded = false;
             _heightMapWidth = 0;
@@ -1062,65 +1050,195 @@ public partial class MainWindow : Window
             _heightMapMax = 0;
 
             StatusText.Text =
-                $"No heightmap found for {_selectedFace}.";
-
+                "No active planet editing session.";
             return;
         }
 
-        var path =
-            planetFace.HeightMapPath;
+        var planetFace = planet.Faces[face];
 
-        try
+        var heightAsset =
+            session.GetAsset(face, MapKind.Height);
+
+        var materialAsset =
+            session.GetAsset(face, MapKind.Material);
+
+        string? heightError = null;
+        string? materialError = null;
+
+        // -------------------------------------------------
+        // HEIGHTMAP
+        // -------------------------------------------------
+
+        if (heightAsset.HeightMap != null)
         {
-            StatusText.Text =
-                $"Loading {_selectedFace} heightmap...";
-
-            Console.WriteLine(
-                $"HEIGHTMAP LOAD: {_selectedFace}");
-
-            Console.WriteLine(
-                $"Path: {path}");
-
-            var heightMap =
-                await Task.Run(
-                    () =>
-                        PlanetImageLoader.LoadHeightMap(
-                            path));
+            if (!IsCurrentLoad())
+                return;
 
             UpdateHeightMapDiagnostics(
-                heightMap);
-
-            heightAsset.SetHeightMap(
-                heightMap);
-
-            Console.WriteLine(
-                $"HEIGHTMAP LOADED: " +
-                $"{heightMap.Width}x{heightMap.Height}");
-
-            Console.WriteLine(
-                $"Samples: {heightMap.Samples.Length}");
-
-            Console.WriteLine(
-                $"Range: {_heightMapMin} → {_heightMapMax}");
+                heightAsset.HeightMap);
 
             GlViewport.SetHeightMap(
-                heightMap);
-
-            StatusText.Text =
-                $"{_selectedFace} heightmap loaded " +
-                $"({heightMap.Width}×{heightMap.Height}).";
+                heightAsset.HeightMap);
         }
-        catch (Exception ex)
+        else if (!string.IsNullOrWhiteSpace(
+            planetFace.HeightMapPath))
         {
-            GlViewport.SetHeightMap(
-                null);
+            var path = planetFace.HeightMapPath;
 
+            try
+            {
+                StatusText.Text =
+                    $"Loading {face} heightmap...";
+
+                Console.WriteLine(
+                    $"HEIGHTMAP LOAD: {face}");
+
+                Console.WriteLine(
+                    $"Path: {path}");
+
+                var heightMap =
+                    await Task.Run(
+                        () => PlanetImageLoader.LoadHeightMap(path));
+
+                // Selection may have changed during decoding.
+                if (!IsCurrentLoad())
+                    return;
+
+                UpdateHeightMapDiagnostics(heightMap);
+
+                heightAsset.SetHeightMap(heightMap);
+
+                Console.WriteLine(
+                    $"HEIGHTMAP LOADED: " +
+                    $"{heightMap.Width}x{heightMap.Height}");
+
+                Console.WriteLine(
+                    $"Samples: {heightMap.Samples.Length}");
+
+                Console.WriteLine(
+                    $"Range: {_heightMapMin} → {_heightMapMax}");
+
+                GlViewport.SetHeightMap(heightMap);
+            }
+            catch (Exception ex)
+            {
+                if (!IsCurrentLoad())
+                    return;
+
+                heightError = ex.Message;
+
+                GlViewport.SetHeightMap(null);
+
+                _heightMapLoaded = false;
+                _heightMapWidth = 0;
+                _heightMapHeight = 0;
+                _heightMapMin = 0;
+                _heightMapMax = 0;
+
+                Console.WriteLine(
+                    $"HEIGHTMAP LOAD FAILED: {ex}");
+            }
+        }
+        else
+        {
+            if (!IsCurrentLoad())
+                return;
+
+            GlViewport.SetHeightMap(null);
+
+            _heightMapLoaded = false;
+            _heightMapWidth = 0;
+            _heightMapHeight = 0;
+            _heightMapMin = 0;
+            _heightMapMax = 0;
+        }
+
+        if (!IsCurrentLoad())
+            return;
+
+        // -------------------------------------------------
+        // MATERIAL MAP
+        // -------------------------------------------------
+
+        if (materialAsset.MaterialMap == null &&
+            !string.IsNullOrWhiteSpace(
+                planetFace.MaterialMapPath))
+        {
+            var path = planetFace.MaterialMapPath;
+
+            try
+            {
+                StatusText.Text =
+                    $"Loading {face} material map...";
+
+                Console.WriteLine(
+                    $"MATERIAL MAP LOAD: {face}");
+
+                Console.WriteLine(
+                    $"Path: {path}");
+
+                var materialMap =
+                    await Task.Run(
+                        () => PlanetImageLoader.LoadMaterialMap(path));
+
+                if (!IsCurrentLoad())
+                    return;
+
+                materialAsset.SetMaterialMap(materialMap);
+
+                Console.WriteLine(
+                    $"MATERIAL MAP LOADED: {face}");
+            }
+            catch (Exception ex)
+            {
+                if (!IsCurrentLoad())
+                    return;
+
+                materialError = ex.Message;
+
+                Console.WriteLine(
+                    $"MATERIAL MAP LOAD FAILED: {ex}");
+            }
+        }
+
+        // -------------------------------------------------
+        // FINAL STATUS
+        // -------------------------------------------------
+
+        if (!IsCurrentLoad())
+            return;
+
+        if (heightError != null &&
+            materialError != null)
+        {
             StatusText.Text =
-                $"Unable to load {_selectedFace} heightmap: " +
-                ex.Message;
-
-            Console.WriteLine(
-                $"HEIGHTMAP LOAD FAILED: {ex}");
+                $"Unable to load {face} maps. " +
+                $"Height: {heightError}; " +
+                $"Material: {materialError}";
+        }
+        else if (heightError != null)
+        {
+            StatusText.Text =
+                $"Unable to load {face} heightmap: " +
+                heightError;
+        }
+        else if (materialError != null)
+        {
+            StatusText.Text =
+                _heightMapLoaded
+                    ? $"Heightmap ready; material map failed: {materialError}"
+                    : $"Material map failed: {materialError}";
+        }
+        else if (_heightMapLoaded)
+        {
+            StatusText.Text =
+                $"{face} heightmap ready " +
+                $"({_heightMapWidth}×{_heightMapHeight}).";
+        }
+        else
+        {
+            StatusText.Text =
+                $"No heightmap found for {face}.";
         }
     }
 

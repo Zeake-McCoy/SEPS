@@ -57,15 +57,24 @@ public sealed class MapAssetState
         IsDirty = false;
     }
 
-    public bool TryUnload()
+    
+public bool TryUnload()
     {
         if (IsDirty)
         {
             return false;
         }
 
-        HeightMap = null;
-        MaterialMap = null;
+        switch (Kind)
+        {
+            case MapKind.Height:
+                HeightMap = null;
+                break;
+
+            case MapKind.Material:
+                MaterialMap = null;
+                break;
+        }
 
         return true;
     }

@@ -29,6 +29,11 @@ public partial class MainWindow : Window
     private ushort _heightMapMin;
     private ushort _heightMapMax;
 
+    private MaterialChannel _selectedMaterialChannel =
+    MaterialChannel.Red;
+    private bool _materialDisplayEnabled;
+    private bool _rawChannelIntensity;
+
     private bool _middleMouseDragging;
     private Point _lastMousePosition;
 
@@ -68,6 +73,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        UpdateToolbarSelection();
 
         _navigationTimer =
             new DispatcherTimer
@@ -452,7 +458,7 @@ public partial class MainWindow : Window
 
         var oldFace =
             _selectedFace;
-
+            
         // Invalidate any in-flight face load.
         _faceLoadGeneration++;
 
@@ -461,6 +467,7 @@ public partial class MainWindow : Window
 
         _selectedFace =
             face;
+            UpdateToolbarSelection();
 
         // Reset diagnostics for the newly selected face.
         _heightMapLoaded = false;
@@ -473,6 +480,118 @@ public partial class MainWindow : Window
             $"Face: {face}";
 
         _ = LoadSelectedFaceAsync();
+    }
+
+    private void TerrainMode_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        _materialDisplayEnabled = false;
+        UpdateMaterialDisplay();
+        UpdateToolbarSelection();
+    }
+
+    private void MaterialsMode_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        _materialDisplayEnabled = true;
+        UpdateMaterialDisplay();
+        UpdateToolbarSelection();
+    }
+
+    private void MaterialChannel_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not Button button)
+            return;
+
+        if (!Enum.TryParse<MaterialChannel>(
+                button.Tag?.ToString(),
+                out var channel))
+        {
+            return;
+        }
+
+        _selectedMaterialChannel = channel;
+
+        if (_materialDisplayEnabled)
+        {
+            UpdateMaterialDisplay();
+        }
+        
+        UpdateToolbarSelection();
+    }
+
+    private void UpdateMaterialDisplay()
+    {
+        MaterialMap? materialMap = null;
+
+        if (_materialDisplayEnabled)
+        {
+            materialMap =
+                _editorState.Session?
+                    .GetAsset(
+                        _selectedFace,
+                        MapKind.Material)
+                    .MaterialMap;
+        }
+
+        GlViewport.SetMaterialChannel(
+            materialMap,
+            _selectedMaterialChannel,
+            _materialDisplayEnabled &&
+            materialMap != null,
+            _rawChannelIntensity);
+    }
+
+    private void UpdateToolbarSelection()
+    {
+        // Cube face selection
+        FrontFaceButton.Classes.Set(
+            "selected",
+            _selectedFace == CubeFace.Front);
+
+        BackFaceButton.Classes.Set(
+            "selected",
+            _selectedFace == CubeFace.Back);
+
+        LeftFaceButton.Classes.Set(
+            "selected",
+            _selectedFace == CubeFace.Left);
+
+        RightFaceButton.Classes.Set(
+            "selected",
+            _selectedFace == CubeFace.Right);
+
+        TopFaceButton.Classes.Set(
+            "selected",
+            _selectedFace == CubeFace.Top);
+
+        BottomFaceButton.Classes.Set(
+            "selected",
+            _selectedFace == CubeFace.Bottom);
+        // Mode Selection
+        TerrainModeButton.Classes.Set(
+            "selected",
+            !_materialDisplayEnabled);
+
+        MaterialsModeButton.Classes.Set(
+            "selected",
+            _materialDisplayEnabled);
+        // Channel Selection
+        MaterialsChannelButton.Classes.Set(
+            "selected",
+            _selectedMaterialChannel == MaterialChannel.Red);
+
+        EnvironmentChannelButton.Classes.Set(
+            "selected",
+            _selectedMaterialChannel == MaterialChannel.Green);
+
+        ResourcesChannelButton.Classes.Set(
+            "selected",
+            _selectedMaterialChannel == MaterialChannel.Blue);
     }
 
     private void ResetView_Click(
@@ -495,6 +614,17 @@ public partial class MainWindow : Window
 
         MapWorkspace.Focus(
             NavigationMethod.Pointer);
+    }
+
+    private void RawChannelIntensity_Click(
+        object? sender,
+        RoutedEventArgs e)
+    {
+        if (sender is not MenuItem menuItem)
+            return;
+
+        _rawChannelIntensity = menuItem.IsChecked;
+        UpdateMaterialDisplay();
     }
 
     private async void Diagnostics_Click(
@@ -584,7 +714,7 @@ public partial class MainWindow : Window
             "Application");
 
         lines.Add(
-            "  Version: V0.2.9");
+            "  Version: V0.2.10");
 
         lines.Add(
             "  Runtime: " +
@@ -1036,6 +1166,11 @@ public partial class MainWindow : Window
             _heightMapMax = 0;
 
             StatusText.Text = "No planet selected.";
+
+            GlViewport.SetMaterialChannel(
+                null,
+                _selectedMaterialChannel,
+                false);
             return;
         }
 
@@ -1051,6 +1186,11 @@ public partial class MainWindow : Window
 
             StatusText.Text =
                 "No active planet editing session.";
+
+            GlViewport.SetMaterialChannel(
+                null,
+                _selectedMaterialChannel,
+                false);
             return;
         }
 
@@ -1200,6 +1340,11 @@ public partial class MainWindow : Window
                     $"MATERIAL MAP LOAD FAILED: {ex}");
             }
         }
+
+        if (!IsCurrentLoad())
+                        return;
+
+        UpdateMaterialDisplay();
 
         // -------------------------------------------------
         // FINAL STATUS

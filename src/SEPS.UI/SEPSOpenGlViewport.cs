@@ -15,7 +15,15 @@ public sealed class SEPSOpenGlViewport
     new();
 
     private bool _initialized;
+
     private HeightMap? _pendingHeightMap;
+    private bool _hasPendingHeightMapUpdate;
+
+    private byte[]? _pendingMaterialPixels;
+    private int _pendingMaterialWidth;
+    private int _pendingMaterialHeight;
+    private bool _pendingMaterialDisplay;
+    private bool _hasPendingMaterialUpdate;
 
     public MapViewportState ViewportState =>
         _viewportState;
@@ -37,8 +45,8 @@ public sealed class SEPSOpenGlViewport
     public void SetHeightMap(
         HeightMap? heightMap)
     {
-        _pendingHeightMap =
-            heightMap;
+        _pendingHeightMap = heightMap;
+        _hasPendingHeightMapUpdate = true;
 
         Console.WriteLine(
             heightMap == null
@@ -49,6 +57,41 @@ public sealed class SEPSOpenGlViewport
         if (_initialized)
             RequestNextFrameRendering();
     }
+
+    
+    public void SetMaterialChannel(
+    MaterialMap? materialMap,
+    MaterialChannel channel,
+    bool enabled,
+    bool rawIntensity = false)
+    {
+        if (enabled && materialMap != null)
+        {
+            _pendingMaterialPixels =
+                materialMap.ExtractChannel(channel, rawIntensity);
+
+            _pendingMaterialWidth =
+                materialMap.Width;
+
+            _pendingMaterialHeight =
+                materialMap.Height;
+
+            _pendingMaterialDisplay = true;
+        }
+        else
+        {
+            _pendingMaterialPixels = null;
+            _pendingMaterialWidth = 0;
+            _pendingMaterialHeight = 0;
+            _pendingMaterialDisplay = false;
+        }
+
+        _hasPendingMaterialUpdate = true;
+
+        if (_initialized)
+            RequestNextFrameRendering();
+    }
+
 
     public void RequestViewportRedraw()
     {
@@ -94,15 +137,43 @@ public sealed class SEPSOpenGlViewport
         int fb)
     {
 
-        if (_pendingHeightMap != null)
+        if (_hasPendingHeightMapUpdate)
         {
-            var map =
-                _pendingHeightMap;
+            var map = _pendingHeightMap;
 
             _pendingHeightMap = null;
+            _hasPendingHeightMapUpdate = false;
 
-            _renderer.SetHeightMap(
-                map);
+            if (map != null)
+            {
+                _renderer.SetHeightMap(map);
+            }
+            else
+            {
+                _renderer.ClearHeightMap();
+            }
+        }
+
+        if (_hasPendingMaterialUpdate)
+        {
+            var pixels = _pendingMaterialPixels;
+            var width = _pendingMaterialWidth;
+            var height = _pendingMaterialHeight;
+            var showMaterial = _pendingMaterialDisplay;
+
+            _hasPendingMaterialUpdate = false;
+            _pendingMaterialPixels = null;
+
+            if (pixels != null)
+            {
+                _renderer.SetMaterialChannelImage(
+                    width,
+                    height,
+                    pixels);
+            }
+
+            _renderer.SetMaterialDisplay(
+                showMaterial);
         }
 
         _renderer.Render(
@@ -126,6 +197,13 @@ public sealed class SEPSOpenGlViewport
         _initialized = false;
 
         _pendingHeightMap = null;
+        _hasPendingHeightMapUpdate = false;
+
+        _pendingMaterialPixels = null;
+        _pendingMaterialWidth = 0;
+        _pendingMaterialHeight = 0;
+        _pendingMaterialDisplay = false;
+        _hasPendingMaterialUpdate = false;
 
         _renderer.Dispose();
     }

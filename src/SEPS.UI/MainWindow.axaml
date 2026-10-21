@@ -7,6 +7,13 @@
         MinWidth="1000" MinHeight="650"
         Opened="MainWindow_Opened"
         Title="SEPS — Space Engineers Planet Studio">
+  <Window.Styles>
+  <Style Selector="Button.selected">
+    <Setter Property="Background" Value="#454545"/>
+    <Setter Property="BorderBrush" Value="#888888"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+</Window.Styles>
   <DockPanel>
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
@@ -27,6 +34,10 @@
         <MenuItem Header="Reset / Fit View"
                   Click="ResetView_Click"/>
         <Separator/>
+        <MenuItem Header="Raw Channel Intensity"
+                ToggleType="CheckBox"
+                IsChecked="False"
+                Click="RawChannelIntensity_Click"/>
       </MenuItem>
       <MenuItem Header="_Help">
       <MenuItem Header="Diagnostics">
@@ -45,18 +56,51 @@
     <Border DockPanel.Dock="Top" Background="#252525" Padding="8">
       <StackPanel Orientation="Horizontal" Spacing="6">
         <TextBlock Text="Face:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-        <Button Content="Front" Tag="Front" Click="Face_Click"/>
-        <Button Content="Back" Tag="Back" Click="Face_Click"/>
-        <Button Content="Left" Tag="Left" Click="Face_Click"/>
-        <Button Content="Right" Tag="Right" Click="Face_Click"/>
-        <Button Content="Top" Tag="Top" Click="Face_Click"/>
-        <Button Content="Bottom" Tag="Bottom" Click="Face_Click"/>
+        <Button x:Name="FrontFaceButton"
+                Content="Front" 
+                Tag="Front" 
+                Click="Face_Click"/>
+        <Button x:Name="BackFaceButton"
+                Content="Back" 
+                Tag="Back" 
+                Click="Face_Click"/>
+        <Button x:Name="LeftFaceButton"
+                Content="Left" 
+                Tag="Left" 
+                Click="Face_Click"/>
+        <Button x:Name="RightFaceButton"
+                Content="Right" 
+                Tag="Right" 
+                Click="Face_Click"/>
+        <Button x:Name="TopFaceButton"
+                Content="Top" 
+                Tag="Top" 
+                Click="Face_Click"/>
+        <Button x:Name="BottomFaceButton"
+                Content="Bottom" 
+                Tag="Bottom" 
+                Click="Face_Click"/>
         <Separator Margin="8,0"/>
         <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="4,0"/>
-        <Button Content="Terrain"/>
-        <Button Content="Materials"/>
-        <Button Content="Resources"/>
-        <Button Content="Ecosystem"/>
+        <Button x:Name="TerrainModeButton"
+                Content="Terrain"
+                Click="TerrainMode_Click"/>
+        <Button x:Name="MaterialsModeButton"
+                Content="Materials"
+                Click="MaterialsMode_Click"/>
+        <TextBlock Text="Channels:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+        <Button x:Name="MaterialsChannelButton"
+                Content="Materials"
+                Tag="Red"
+                Click="MaterialChannel_Click"/>
+        <Button x:Name="EnvironmentChannelButton"
+                Content="Environment"
+                Tag="Green"
+                Click="MaterialChannel_Click"/>
+        <Button x:Name="ResourcesChannelButton"
+                Content="Resources"
+                Tag="Blue"
+                Click="MaterialChannel_Click"/>
       </StackPanel>
     </Border>
 
@@ -100,9 +144,9 @@
       <StackPanel Spacing="10">
         <TextBlock Text="Layers" FontSize="20" FontWeight="Bold"/>
         <CheckBox Content="Terrain" IsChecked="True"/>
-        <CheckBox Content="Materials / Biomes" IsChecked="True"/>
+        <CheckBox Content="Materials" IsChecked="True"/>
         <CheckBox Content="Resources" IsChecked="True"/>
-        <CheckBox Content="Ecosystem" IsChecked="True"/>
+        <CheckBox Content="Environment" IsChecked="True"/>
         <CheckBox Content="Water" IsChecked="True"/>
         <CheckBox Content="Topographic Lines"/>
         <CheckBox Content="Geographic Grid"/>

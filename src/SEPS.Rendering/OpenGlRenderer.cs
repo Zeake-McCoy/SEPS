@@ -11,8 +11,13 @@ public sealed unsafe class OpenGlRenderer : IDisposable
     private uint _vertexBuffer;
     private uint _shaderProgram;
     private uint _heightTexture;
+    private uint _materialTexture;
 
     private int _heightMapLocation;
+    private int _materialMapLocation;
+    private int _showMaterialLocation;
+
+    private bool _showMaterial;
 
     private int _zoomLocation;
     private int _panLocation;
@@ -85,6 +90,7 @@ public sealed unsafe class OpenGlRenderer : IDisposable
         }
         """;
 
+    
     private const string FragmentShader = """
         #version 300 es
         precision mediump float;
@@ -92,22 +98,31 @@ public sealed unsafe class OpenGlRenderer : IDisposable
         in vec2 vTexCoord;
 
         uniform sampler2D uHeightMap;
+        uniform sampler2D uMaterialMap;
+        uniform bool uShowMaterial;
 
         out vec4 FragColor;
 
         void main()
         {
-            float height =
-                texture(
+            if (uShowMaterial)
+            {
+                FragColor = texture(
+                    uMaterialMap,
+                    vTexCoord);
+            }
+            else
+            {
+                float height = texture(
                     uHeightMap,
                     vTexCoord).r;
 
-            FragColor =
-                vec4(
+                FragColor = vec4(
                     height,
                     height,
                     height,
                     1.0);
+            }
         }
         """;
 
@@ -127,6 +142,16 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             _gl.GetUniformLocation(
                 _shaderProgram,
                 "uHeightMap");
+
+        _materialMapLocation =
+            _gl.GetUniformLocation(
+                _shaderProgram,
+                "uMaterialMap");
+
+        _showMaterialLocation =
+            _gl.GetUniformLocation(
+                _shaderProgram,
+                "uShowMaterial");
 
         _zoomLocation =
             _gl.GetUniformLocation(
@@ -215,15 +240,15 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             TextureTarget.Texture2D,
             _heightTexture);
 
-        gl.TexParameter(
+        _gl.TexParameter(
             TextureTarget.Texture2D,
             TextureParameterName.TextureMinFilter,
-            (int)GLEnum.Linear);
+            (int)TextureMinFilter.Nearest);
 
-        gl.TexParameter(
+        _gl.TexParameter(
             TextureTarget.Texture2D,
             TextureParameterName.TextureMagFilter,
-            (int)GLEnum.Linear);
+            (int)TextureMagFilter.Nearest);
 
         gl.TexParameter(
             TextureTarget.Texture2D,
@@ -259,6 +284,96 @@ public sealed unsafe class OpenGlRenderer : IDisposable
 
         _textureHeight =
             heightMap.Height;
+    }
+
+    public void ClearHeightMap()
+    {
+        if (_gl == null)
+            return;
+
+        if (_heightTexture != 0)
+        {
+            _gl.DeleteTexture(_heightTexture);
+            _heightTexture = 0;
+        }
+
+        _textureWidth = 0;
+        _textureHeight = 0;
+    }
+
+    public void SetMaterialChannelImage(
+        int width,
+        int height,
+        byte[] rgba)
+    {
+        if (_gl == null)
+        {
+            Console.WriteLine(
+                "OpenGL renderer: material image upload " +
+                "requested before initialization.");
+
+            return;
+        }
+
+        if (width <= 0 ||
+            height <= 0 ||
+            rgba.Length != checked(width * height * 4))
+        {
+            throw new ArgumentException(
+                "Invalid material channel image dimensions or data.");
+        }
+
+        var gl = _gl;
+
+        if (_materialTexture == 0)
+            _materialTexture = gl.GenTexture();
+
+        gl.BindTexture(
+            TextureTarget.Texture2D,
+            _materialTexture);
+
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Nearest);
+
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Nearest);
+
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.ClampToEdge);
+
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.ClampToEdge);
+
+        fixed (byte* pixels = rgba)
+        {
+            gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                InternalFormat.Rgba8,
+                (uint)width,
+                (uint)height,
+                0,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                pixels);
+        }
+
+        gl.BindTexture(
+            TextureTarget.Texture2D,
+            0);
+    }
+
+    public void SetMaterialDisplay(bool enabled)
+    {
+        _showMaterial = enabled;
     }
 
         public void Render(
@@ -297,11 +412,9 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             0.08f,
             1.0f);
 
-        gl.Clear(
-            ClearBufferMask.ColorBufferBit);
+        gl.Clear(ClearBufferMask.ColorBufferBit);
 
-        gl.UseProgram(
-            _shaderProgram);
+        gl.UseProgram(_shaderProgram);
 
         gl.Uniform1(
             _zoomLocation,
@@ -315,31 +428,37 @@ public sealed unsafe class OpenGlRenderer : IDisposable
         gl.Uniform1(
             _yawLocation,
             (float)yaw);
-
-        gl.ActiveTexture(
-            TextureUnit.Texture0);
-
+        
+        gl.ActiveTexture(TextureUnit.Texture0);
         gl.BindTexture(
             TextureTarget.Texture2D,
             _heightTexture);
 
-        gl.Uniform1(
-            _heightMapLocation,
-            0);
+        gl.Uniform1(_heightMapLocation, 0);
 
-        gl.BindVertexArray(
-            _vertexArray);
-
-        gl.DrawArrays(
-            PrimitiveType.Triangles,
-            0,
-            6);
-
-        gl.BindVertexArray(0);
-
+        gl.ActiveTexture(TextureUnit.Texture1);
         gl.BindTexture(
             TextureTarget.Texture2D,
-            0);
+            _materialTexture);
+
+        gl.Uniform1(_materialMapLocation, 1);
+
+        gl.Uniform1(
+            _showMaterialLocation,
+            _showMaterial ? 1 : 0);
+
+        // Bind the geometry and draw the two triangles.
+        gl.BindVertexArray(_vertexArray);
+        gl.DrawArrays(PrimitiveType.Triangles, 0, 6);
+
+        // Unbind textures after drawing.
+        gl.BindVertexArray(0);
+
+        gl.ActiveTexture(TextureUnit.Texture1);
+        gl.BindTexture(TextureTarget.Texture2D, 0);
+
+        gl.ActiveTexture(TextureUnit.Texture0);
+        gl.BindTexture(TextureTarget.Texture2D, 0);
 
         gl.UseProgram(0);
     }
@@ -461,6 +580,9 @@ public sealed unsafe class OpenGlRenderer : IDisposable
             gl.DeleteTexture(
                 _heightTexture);
 
+        if (_materialTexture != 0)
+            gl.DeleteTexture(_materialTexture);
+
         if (_vertexBuffer != 0)
             gl.DeleteBuffer(
                 _vertexBuffer);
@@ -474,6 +596,7 @@ public sealed unsafe class OpenGlRenderer : IDisposable
                 _shaderProgram);
 
         _heightTexture = 0;
+        _materialTexture = 0;
         _vertexBuffer = 0;
         _vertexArray = 0;
         _shaderProgram = 0;
